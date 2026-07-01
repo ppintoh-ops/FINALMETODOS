@@ -14,6 +14,9 @@ public class ConexionDB {
             try {
                 conexion = DriverManager.getConnection(URL);
                 System.out.println("Conexion a SQLite correcta");
+
+                inicializarBaseDeDatos();
+
             } catch (SQLException e){
                 System.out.println("Error al conectar con la base de datos");
                 e.printStackTrace();
