@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Button?>
+
+<VBox alignment="CENTER" spacing="20.0" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.proyectomsw.gui.VentanaPrincipalController">
+
+    <Label fx:id="textoBienvenida" text="Cargando..." style="-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;" />
+
+    <Button text="Crear Nuevo Proyecto" onAction="#crearProyecto" style="-fx-font-size: 14px; -fx-padding: 10 20 10 20; -fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand;" />
+</VBox>
