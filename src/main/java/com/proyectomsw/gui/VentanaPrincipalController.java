@@ -5,7 +5,9 @@ import com.proyectomsw.database.ProyectoDAO;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TextInputDialog;
+import java.util.List;
 import java.util.Optional;
 
 public class VentanaPrincipalController {
@@ -14,8 +16,11 @@ public class VentanaPrincipalController {
     private Label textoBienvenida;
 
     @FXML
+    private ListView<Proyecto> listaProyectos;
+
+    @FXML
     public void initialize() {
-        textoBienvenida.setText("¡El motor de simulación está conectado y listo!");
+        cargarProyectosEnLista();
     }
 
 
@@ -50,4 +55,16 @@ public class VentanaPrincipalController {
             }
         });
     }
+
+    private void cargarProyectosEnLista() {
+        // Limpiamos la lista visual por si tenía algo antes
+        listaProyectos.getItems().clear();
+
+        // Pedimos todos los proyectos al DAO
+        List<Proyecto> proyectosGuardados = ProyectoDAO.obtenerTodos();
+
+        // Los metemos todos en la lista visual de JavaFX
+        listaProyectos.getItems().addAll(proyectosGuardados);
+    }
+
 }

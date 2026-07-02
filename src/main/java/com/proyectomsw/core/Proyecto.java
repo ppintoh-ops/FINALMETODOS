@@ -26,4 +26,10 @@ public class Proyecto {
 
     public String getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(String fechaCreacion) { this.fechaCreacion = fechaCreacion; }
+
+    @Override
+    public String toString() {
+        return "ID: " + id + " | " + nombre;
+    }
+
 }
