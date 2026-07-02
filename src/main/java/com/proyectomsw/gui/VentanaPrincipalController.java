@@ -4,6 +4,7 @@ import com.proyectomsw.core.Proyecto;
 import com.proyectomsw.database.ProyectoDAO;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -83,11 +84,17 @@ public class VentanaPrincipalController {
         Proyecto seleccionado = listaProyectos.getSelectionModel().getSelectedItem();
 
         if (seleccionado != null) {
-
-            textoBienvenida.setText(" Abriendo entorno para: " + seleccionado.getNombre());
-            textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #8e44ad;");
-
-
+            try{
+                FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/EditorProyecto.fxml"));
+                javafx.scene.Parent raiz = loader.load();
+                EditorProyectoController controladorEditor = loader.getController();
+                controladorEditor.setProyecto(seleccionado);
+                javafx.stage.Stage escenario = (javafx.stage.Stage) btnAbrir.getScene().getWindow();
+                escenario.setScene(new javafx.scene.Scene(raiz, 800, 600));
+            }catch (Exception e){
+                textoBienvenida.setText(" Error al abrir el entorno de trabajo.");
+                e.printStackTrace();
+            }
         }
     }
 

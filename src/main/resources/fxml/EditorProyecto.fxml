@@ -16,7 +16,7 @@
     </top>
 
     <center>
-        <Pane style="-fx-background-color: #ecf0f1;" />
+        <Pane fx:id="lienzo" onMouseClicked="#clicEnLienzo" style="-fx-background-color: #ecf0f1;" />
     </center>
 
 </BorderPane>

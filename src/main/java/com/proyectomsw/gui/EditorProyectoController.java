@@ -10,11 +10,18 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
 import java.io.IOException;
+import javafx.scene.layout.Pane;
+import javafx.scene.shape.Circle;
+import javafx.scene.paint.Color;
+import javafx.scene.input.MouseEvent;
 
 public class EditorProyectoController {
 
     @FXML
     private Label tituloProyecto;
+
+    @FXML
+    private Pane lienzo;
 
     private Proyecto proyectoActual;
     public void setProyecto(Proyecto proyecto) {
@@ -34,5 +41,16 @@ public class EditorProyectoController {
         } catch (IOException e) {
             System.out.println("Error al volver al menú: " + e.getMessage());
         }
+    }
+    @FXML
+    public void clicEnLienzo(MouseEvent event) {
+        // 1. Capturamos las coordenadas X e Y de donde hiciste clic
+        double posicionX = event.getX();
+        double posicionY = event.getY();
+        Circle nuevoEstado = new Circle(posicionX, posicionY, 20);
+        nuevoEstado.setFill(Color.web("#3498db"));
+        nuevoEstado.setStroke(Color.web("#2980b9"));
+        nuevoEstado.setStrokeWidth(2);
+        lienzo.getChildren().add(nuevoEstado);
     }
 }
