@@ -4,6 +4,7 @@ import com.proyectomsw.core.Proyecto;
 import com.proyectomsw.database.ProyectoDAO;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextInputDialog;
@@ -12,15 +13,21 @@ import java.util.Optional;
 
 public class VentanaPrincipalController {
 
-    @FXML
-    private Label textoBienvenida;
 
-    @FXML
-    private ListView<Proyecto> listaProyectos;
+    @FXML private Label textoBienvenida;
+    @FXML private ListView<Proyecto> listaProyectos;
+
+    @FXML private Button btnAbrir;
+    @FXML private Button btnEliminar;
 
     @FXML
     public void initialize() {
         cargarProyectosEnLista();
+        listaProyectos.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            boolean haySeleccion = (newValue != null);
+            btnAbrir.setDisable(!haySeleccion);
+            btnEliminar.setDisable(!haySeleccion);
+        });
     }
 
 
@@ -56,14 +63,37 @@ public class VentanaPrincipalController {
         });
     }
 
+    @FXML
+    public void eliminarProyecto(ActionEvent event) {
+
+        Proyecto seleccionado = listaProyectos.getSelectionModel().getSelectedItem();
+
+        if (seleccionado != null) {
+
+            if (ProyectoDAO.eliminar(seleccionado.getId())) {
+                textoBienvenida.setText(" Proyecto '" + seleccionado.getNombre() + "' eliminado.");
+                textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e67e22;");
+                cargarProyectosEnLista();
+            }
+        }
+    }
+
+    @FXML
+    public void abrirProyecto(ActionEvent event) {
+        Proyecto seleccionado = listaProyectos.getSelectionModel().getSelectedItem();
+
+        if (seleccionado != null) {
+
+            textoBienvenida.setText(" Abriendo entorno para: " + seleccionado.getNombre());
+            textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #8e44ad;");
+
+
+        }
+    }
+
     private void cargarProyectosEnLista() {
-        // Limpiamos la lista visual por si tenía algo antes
         listaProyectos.getItems().clear();
-
-        // Pedimos todos los proyectos al DAO
         List<Proyecto> proyectosGuardados = ProyectoDAO.obtenerTodos();
-
-        // Los metemos todos en la lista visual de JavaFX
         listaProyectos.getItems().addAll(proyectosGuardados);
     }
 
