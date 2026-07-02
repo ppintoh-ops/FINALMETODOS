@@ -23,6 +23,9 @@ public class EditorProyectoController {
     @FXML
     private Pane lienzo;
 
+    private double offsetArrastreX;
+    private double offsetArrastreY;
+
     private Proyecto proyectoActual;
     public void setProyecto(Proyecto proyecto) {
         this.proyectoActual = proyecto;
@@ -44,13 +47,33 @@ public class EditorProyectoController {
     }
     @FXML
     public void clicEnLienzo(MouseEvent event) {
-        // 1. Capturamos las coordenadas X e Y de donde hiciste clic
+        if (event.isConsumed()){
+            return;
+        }
         double posicionX = event.getX();
         double posicionY = event.getY();
         Circle nuevoEstado = new Circle(posicionX, posicionY, 20);
         nuevoEstado.setFill(Color.web("#3498db"));
         nuevoEstado.setStroke(Color.web("#2980b9"));
         nuevoEstado.setStrokeWidth(2);
+        nuevoEstado.setCursor(javafx.scene.Cursor.HAND);
+
+        nuevoEstado.setOnMousePressed(e -> {
+            offsetArrastreX = nuevoEstado.getCenterX() - e.getX();
+            offsetArrastreY = nuevoEstado.getCenterY() - e.getY();
+            e.consume();
+        });
+        nuevoEstado.setOnMouseDragged(e -> {
+                    nuevoEstado.setCenterX(e.getX() + offsetArrastreX);
+                    nuevoEstado.setCenterY(e.getY() + offsetArrastreY);
+                    e.consume();
+                });
+
+        nuevoEstado.setOnMouseClicked(e -> {
+
+            e.consume();
+        });
+
         lienzo.getChildren().add(nuevoEstado);
     }
 }
