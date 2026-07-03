@@ -20,6 +20,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.shape.Line;
 import javafx.scene.input.MouseButton;
+import javafx.scene.shape.Polygon;
+import javafx.beans.value.ChangeListener;
 
 public class EditorProyectoController {
 
@@ -48,7 +50,38 @@ public class EditorProyectoController {
         linea.endXProperty().bind(destino.layoutXProperty());
         linea.endYProperty().bind(destino.layoutYProperty());
 
+        Polygon puntaFlecha = new Polygon(
+                0.0, 0.0,
+                -10.0, 5.0,
+                -10.0, -5.0
+        );
+        puntaFlecha.setFill(Color.web("#2c3e50"));
 
+        ChangeListener<Number> actualizadorFlecha = (observable, oldValue, newValue) -> {
+            double inicioX = origen.getLayoutX();
+            double inicioY = origen.getLayoutY();
+            double finX = destino.getLayoutX();
+            double finY = destino.getLayoutY();
+
+            double angulo = Math.atan2(finY - inicioY, finX - inicioX) * 180 / Math.PI;
+            puntaFlecha.setRotate(angulo);
+            double distancia = Math.hypot(finX - inicioX, finY - inicioY);
+
+            if (distancia == 0) return;
+            double proporcion = (distancia - 20) / distancia;
+            double flechaX = inicioX + (finX - inicioX) * proporcion;
+            double flechaY = inicioY + (finY - inicioY) * proporcion;
+
+            puntaFlecha.setLayoutX(flechaX);
+            puntaFlecha.setLayoutY(flechaY);
+        };
+
+        origen.layoutXProperty().addListener(actualizadorFlecha);
+        origen.layoutYProperty().addListener(actualizadorFlecha);
+        destino.layoutXProperty().addListener(actualizadorFlecha);
+        destino.layoutYProperty().addListener(actualizadorFlecha);
+        actualizadorFlecha.changed(null, null, null);
+        lienzo.getChildren().add(0, puntaFlecha);
         lienzo.getChildren().add(0, linea);
     }
 
