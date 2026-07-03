@@ -44,17 +44,7 @@ public class EditorProyectoController {
         linea.setStroke(Color.web("#2c3e50"));
         linea.setStrokeWidth(2);
 
-
-        linea.startXProperty().bind(origen.layoutXProperty());
-        linea.startYProperty().bind(origen.layoutYProperty());
-        linea.endXProperty().bind(destino.layoutXProperty());
-        linea.endYProperty().bind(destino.layoutYProperty());
-
-        Polygon puntaFlecha = new Polygon(
-                0.0, 0.0,
-                -10.0, 5.0,
-                -10.0, -5.0
-        );
+        Polygon puntaFlecha = new Polygon();
         puntaFlecha.setFill(Color.web("#2c3e50"));
 
         ChangeListener<Number> actualizadorFlecha = (observable, oldValue, newValue) -> {
@@ -63,24 +53,49 @@ public class EditorProyectoController {
             double finX = destino.getLayoutX();
             double finY = destino.getLayoutY();
 
-            double angulo = Math.atan2(finY - inicioY, finX - inicioX) * 180 / Math.PI;
-            puntaFlecha.setRotate(angulo);
             double distancia = Math.hypot(finX - inicioX, finY - inicioY);
+            if (distancia < 40) return;
+            double theta = Math.atan2(finY - inicioY, finX - inicioX);
 
-            if (distancia == 0) return;
-            double proporcion = (distancia - 20) / distancia;
-            double flechaX = inicioX + (finX - inicioX) * proporcion;
-            double flechaY = inicioY + (finY - inicioY) * proporcion;
 
-            puntaFlecha.setLayoutX(flechaX);
-            puntaFlecha.setLayoutY(flechaY);
+            double radio = 20.0;
+
+
+            double puntaX = finX - radio * Math.cos(theta);
+            double puntaY = finY - radio * Math.sin(theta);
+
+
+            double largoFlecha = 12.0;
+            double anchoFlecha = 6.0;
+
+            double baseMediaX = puntaX - largoFlecha * Math.cos(theta);
+            double baseMediaY = puntaY - largoFlecha * Math.sin(theta);
+
+            double esq1X = baseMediaX + anchoFlecha * Math.cos(theta + Math.PI / 2);
+            double esq1Y = baseMediaY + anchoFlecha * Math.sin(theta + Math.PI / 2);
+
+            double esq2X = baseMediaX + anchoFlecha * Math.cos(theta - Math.PI / 2);
+            double esq2Y = baseMediaY + anchoFlecha * Math.sin(theta - Math.PI / 2);
+
+            puntaFlecha.getPoints().setAll(
+                    puntaX, puntaY,
+                    esq1X, esq1Y,
+                    esq2X, esq2Y
+            );
+
+            linea.setStartX(inicioX + radio * Math.cos(theta));
+            linea.setStartY(inicioY + radio * Math.sin(theta));
+            linea.setEndX(baseMediaX);
+            linea.setEndY(baseMediaY);
         };
 
         origen.layoutXProperty().addListener(actualizadorFlecha);
         origen.layoutYProperty().addListener(actualizadorFlecha);
         destino.layoutXProperty().addListener(actualizadorFlecha);
         destino.layoutYProperty().addListener(actualizadorFlecha);
+
         actualizadorFlecha.changed(null, null, null);
+
         lienzo.getChildren().add(0, puntaFlecha);
         lienzo.getChildren().add(0, linea);
     }
