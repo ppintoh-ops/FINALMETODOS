@@ -102,6 +102,10 @@ public class EditorProyectoController {
 
         actualizadorFlecha.changed(null, null, null);
 
+        linea.getProperties().put("origen", origen);
+        linea.getProperties().put("destino", destino);
+        puntaFlecha.getProperties().put("origen", origen);
+        puntaFlecha.getProperties().put("destino", destino);
 
         lienzo.getChildren().add(0, puntaFlecha);
         lienzo.getChildren().add(0, linea);
@@ -201,8 +205,33 @@ public class EditorProyectoController {
             e.consume();
         });
 
-        nodoEstado.setOnMouseClicked(e -> e.consume());
+        nodoEstado.setOnMouseClicked(e -> {
+            if (e.getButton() == MouseButton.MIDDLE) {
+                lienzo.getChildren().removeIf(nodo ->
+                        nodoEstado.equals(nodo.getProperties().get("origen")) ||
+                                nodoEstado.equals(nodo.getProperties().get("destino"))
+                );
+                lienzo.getChildren().remove(nodoEstado);
+                if (estadoOrigenParaTransicion == nodoEstado) {
+                    estadoOrigenParaTransicion = null;
+                }
+            }
+            e.consume();
+        });
+
 
         lienzo.getChildren().add(nodoEstado);
+    }
+
+    @FXML
+    public void limpiarLienzo() {
+
+        lienzo.getChildren().clear();
+
+
+        contadorEstados = 1;
+
+
+        estadoOrigenParaTransicion = null;
     }
 }
