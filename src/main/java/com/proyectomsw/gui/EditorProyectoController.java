@@ -14,6 +14,12 @@ import javafx.scene.layout.Pane;
 import javafx.scene.shape.Circle;
 import javafx.scene.paint.Color;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.Group;
+import javafx.scene.text.Text;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.shape.Line;
+import javafx.scene.input.MouseButton;
 
 public class EditorProyectoController {
 
@@ -25,12 +31,32 @@ public class EditorProyectoController {
 
     private double offsetArrastreX;
     private double offsetArrastreY;
+    private int contadorEstados = 1;
+    private Group estadoOrigenParaTransicion = null;
+
 
     private Proyecto proyectoActual;
+
+    private void crearTransicion(Group origen, Group destino) {
+        Line linea = new Line();
+        linea.setStroke(Color.web("#2c3e50"));
+        linea.setStrokeWidth(2);
+
+
+        linea.startXProperty().bind(origen.layoutXProperty());
+        linea.startYProperty().bind(origen.layoutYProperty());
+        linea.endXProperty().bind(destino.layoutXProperty());
+        linea.endYProperty().bind(destino.layoutYProperty());
+
+
+        lienzo.getChildren().add(0, linea);
+    }
+
     public void setProyecto(Proyecto proyecto) {
         this.proyectoActual = proyecto;
         tituloProyecto.setText("Lienzo de Modelado: " + proyecto.getNombre());
     }
+
     @FXML
     public void volverAlMenu(ActionEvent event) {
         try {
@@ -45,35 +71,65 @@ public class EditorProyectoController {
             System.out.println("Error al volver al menú: " + e.getMessage());
         }
     }
+
     @FXML
     public void clicEnLienzo(MouseEvent event) {
-        if (event.isConsumed()){
+        if (event.isConsumed()) {
             return;
         }
         double posicionX = event.getX();
         double posicionY = event.getY();
-        Circle nuevoEstado = new Circle(posicionX, posicionY, 20);
-        nuevoEstado.setFill(Color.web("#3498db"));
-        nuevoEstado.setStroke(Color.web("#2980b9"));
-        nuevoEstado.setStrokeWidth(2);
-        nuevoEstado.setCursor(javafx.scene.Cursor.HAND);
 
-        nuevoEstado.setOnMousePressed(e -> {
-            offsetArrastreX = nuevoEstado.getCenterX() - e.getX();
-            offsetArrastreY = nuevoEstado.getCenterY() - e.getY();
+        Group nodoEstado = new Group();
+
+        Circle circulo = new Circle(0, 0, 20);
+        circulo.setFill(Color.web("#3498db"));
+        circulo.setStroke(Color.web("#2980b9"));
+        circulo.setStrokeWidth(2);
+
+        Text texto = new Text("E" + contadorEstados++);
+        texto.setFont(Font.font("System", FontWeight.BOLD, 12));
+        texto.setFill(Color.WHITE);
+
+        texto.setX(-7);
+        texto.setY(4);
+
+        nodoEstado.getChildren().addAll(circulo, texto);
+
+        nodoEstado.setLayoutX(posicionX);
+        nodoEstado.setLayoutY(posicionY);
+
+        nodoEstado.setCursor(javafx.scene.Cursor.HAND);
+
+        nodoEstado.setOnMousePressed(e -> {
+            offsetArrastreX = nodoEstado.getLayoutX() - e.getSceneX();
+            offsetArrastreY = nodoEstado.getLayoutY() - e.getSceneY();
             e.consume();
         });
-        nuevoEstado.setOnMouseDragged(e -> {
-                    nuevoEstado.setCenterX(e.getX() + offsetArrastreX);
-                    nuevoEstado.setCenterY(e.getY() + offsetArrastreY);
-                    e.consume();
-                });
 
-        nuevoEstado.setOnMouseClicked(e -> {
-
+        nodoEstado.setOnMouseDragged(e -> {
+            nodoEstado.setLayoutX(e.getSceneX() + offsetArrastreX);
+            nodoEstado.setLayoutY(e.getSceneY() + offsetArrastreY);
             e.consume();
         });
 
-        lienzo.getChildren().add(nuevoEstado);
+        nodoEstado.setOnMouseClicked(e -> {
+            e.consume();
+            if (e.getButton() == MouseButton.SECONDARY) {
+                if (estadoOrigenParaTransicion == null) {
+                    estadoOrigenParaTransicion = nodoEstado;
+                    circulo.setStroke(Color.web("#e74c3c"));
+                } else {
+                    if (estadoOrigenParaTransicion != nodoEstado) {
+                        crearTransicion(estadoOrigenParaTransicion, nodoEstado);
+                    }
+                    Circle circuloOrigen = (Circle) estadoOrigenParaTransicion.getChildren().get(0);
+                    circuloOrigen.setStroke(Color.web("#2980b9"));
+                    estadoOrigenParaTransicion = null;
+                }
+            }
+        });
+
+        lienzo.getChildren().add(nodoEstado);
     }
 }
