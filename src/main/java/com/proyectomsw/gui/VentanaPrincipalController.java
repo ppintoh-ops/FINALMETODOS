@@ -45,21 +45,17 @@ public class VentanaPrincipalController {
 
 
         resultado.ifPresent(nombre -> {
-
-
             Proyecto nuevoProyecto = new Proyecto();
             nuevoProyecto.setNombre(nombre);
             nuevoProyecto.setDescripcion("Proyecto creado desde la interfaz gráfica.");
 
-            boolean exito = ProyectoDAO.insertar(nuevoProyecto);
-
-
-            if (exito) {
-                textoBienvenida.setText(" ¡Proyecto '" + nombre + "' guardado en la BD!");
-                textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #27ae60;"); // Color verde
+            if (ProyectoDAO.insertar(nuevoProyecto)) {
+                textoBienvenida.setText(" Proyecto guardado exitosamente.");
+                textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #27ae60;");
+                cargarProyectosEnLista();
             } else {
                 textoBienvenida.setText(" Error al guardar el proyecto.");
-                textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;"); // Color rojo
+                textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;");
             }
         });
     }

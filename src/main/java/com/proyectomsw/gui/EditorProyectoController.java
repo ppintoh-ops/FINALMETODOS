@@ -33,11 +33,20 @@ public class EditorProyectoController {
 
     private double offsetArrastreX;
     private double offsetArrastreY;
-    private int contadorEstados = 1;
+    private java.util.HashSet<Integer> idsUsados = new java.util.HashSet<>();
     private Group estadoOrigenParaTransicion = null;
 
 
     private Proyecto proyectoActual;
+
+    private int obtenerSiguienteId() {
+        int id = 1;
+        // Mientras el ID ya esté en uso, probamos con el siguiente número
+        while (idsUsados.contains(id)) {
+            id++;
+        }
+        return id;
+    }
 
     private void crearTransicion(Group origen, Group destino) {
         Line linea = new Line();
@@ -153,13 +162,44 @@ public class EditorProyectoController {
         circulo.setStroke(Color.web("#2980b9"));
         circulo.setStrokeWidth(2);
 
-        Text texto = new Text("E" + contadorEstados++);
+        Circle circuloInterno = new Circle(0, 0, radio - 5);
+        circuloInterno.setFill(Color.TRANSPARENT);
+        circuloInterno.setStroke(Color.web("#2980b9"));
+        circuloInterno.setStrokeWidth(2);
+        circuloInterno.setVisible(false);
+        circuloInterno.setMouseTransparent(true);
+
+        int idActual = obtenerSiguienteId();
+        idsUsados.add(idActual);
+
+        Text texto = new Text("E" + idActual);
         texto.setFont(Font.font("System", FontWeight.BOLD, 12));
         texto.setFill(Color.WHITE);
         texto.setX(-7);
         texto.setY(4);
 
-        nodoEstado.getChildren().addAll(circulo, texto);
+        nodoEstado.getChildren().addAll(circulo, circuloInterno, texto);
+
+        nodoEstado.getProperties().put("idEstado", idActual);
+
+        if (idActual == 1) {
+            Line flechaInicioLinea = new Line(-45, 0, -20, 0);
+            flechaInicioLinea.setStroke(Color.web("#2c3e50"));
+            flechaInicioLinea.setStrokeWidth(2);
+
+
+            Polygon puntaInicio = new Polygon(
+                    -20, 0,
+                    -28, 5,
+                    -28, -5
+            );
+            puntaInicio.setFill(Color.web("#2c3e50"));
+
+            nodoEstado.getChildren().addAll(flechaInicioLinea, puntaInicio);
+        }
+
+
+
         nodoEstado.setLayoutX(posicionX);
         nodoEstado.setLayoutY(posicionY);
 
@@ -207,6 +247,10 @@ public class EditorProyectoController {
 
         nodoEstado.setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.MIDDLE) {
+
+                int idLiberado = (int) nodoEstado.getProperties().get("idEstado");
+                idsUsados.remove(idLiberado);
+
                 lienzo.getChildren().removeIf(nodo ->
                         nodoEstado.equals(nodo.getProperties().get("origen")) ||
                                 nodoEstado.equals(nodo.getProperties().get("destino"))
@@ -215,6 +259,12 @@ public class EditorProyectoController {
                 if (estadoOrigenParaTransicion == nodoEstado) {
                     estadoOrigenParaTransicion = null;
                 }
+            }
+            else if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
+                boolean esFinal = !circuloInterno.isVisible();
+                circuloInterno.setVisible(esFinal);
+
+                nodoEstado.getProperties().put("esFinal", esFinal);
             }
             e.consume();
         });
@@ -229,7 +279,7 @@ public class EditorProyectoController {
         lienzo.getChildren().clear();
 
 
-        contadorEstados = 1;
+        idsUsados.clear();
 
 
         estadoOrigenParaTransicion = null;
