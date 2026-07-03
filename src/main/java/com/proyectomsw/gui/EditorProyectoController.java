@@ -1,6 +1,7 @@
 package com.proyectomsw.gui;
 
 import com.proyectomsw.core.Proyecto;
+import javafx.beans.InvalidationListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -50,56 +51,73 @@ public class EditorProyectoController {
 
     private void crearTransicion(Group origen, Group destino) {
         Line linea = new Line();
-        linea.setStroke(Color.web("#2c3e50"));
-        linea.setStrokeWidth(2);
-
         Polygon puntaFlecha = new Polygon();
-        puntaFlecha.setFill(Color.web("#2c3e50"));
-
-        ChangeListener<Number> actualizadorFlecha = (observable, oldValue, newValue) -> {
-            double inicioX = origen.getLayoutX();
-            double inicioY = origen.getLayoutY();
-            double finX = destino.getLayoutX();
-            double finY = destino.getLayoutY();
-
-            double distancia = Math.hypot(finX - inicioX, finY - inicioY);
 
 
-            if (distancia < 40) return;
+        javafx.scene.control.TextField campoSimbolo = new javafx.scene.control.TextField("ε");
+        campoSimbolo.setPrefWidth(40);
+        campoSimbolo.setAlignment(javafx.geometry.Pos.CENTER);
+        campoSimbolo.setStyle("-fx-background-color: transparent; -fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-font-size: 14px;");
+
+        double radio = 25.0;
+
+        InvalidationListener actualizadorFlecha = observable -> {
+            double x1 = origen.getLayoutX();
+            double y1 = origen.getLayoutY();
+            double x2 = destino.getLayoutX();
+            double y2 = destino.getLayoutY();
+
+            double dx = x2 - x1;
+            double dy = y2 - y1;
+            double distancia = Math.sqrt(dx * dx + dy * dy);
+
+            if (distancia == 0) return;
 
 
-            double theta = Math.atan2(finY - inicioY, finX - inicioX);
-            double radio = 20.0;
+            double startX = x1 + (dx / distancia) * radio;
+            double startY = y1 + (dy / distancia) * radio;
+            double endX = x2 - (dx / distancia) * radio;
+            double endY = y2 - (dy / distancia) * radio;
 
-            double puntaX = finX - radio * Math.cos(theta);
-            double puntaY = finY - radio * Math.sin(theta);
+            double angulo = Math.atan2(dy, dx);
+            double tamanoFlecha = 15.0;
+            double anguloApertura = Math.toRadians(20);
 
-
-            double largoFlecha = 12.0;
-            double anchoFlecha = 6.0;
-
-            double baseMediaX = puntaX - largoFlecha * Math.cos(theta);
-            double baseMediaY = puntaY - largoFlecha * Math.sin(theta);
-
-
-            double esq1X = baseMediaX + anchoFlecha * Math.cos(theta + Math.PI / 2);
-            double esq1Y = baseMediaY + anchoFlecha * Math.sin(theta + Math.PI / 2);
-
-            double esq2X = baseMediaX + anchoFlecha * Math.cos(theta - Math.PI / 2);
-            double esq2Y = baseMediaY + anchoFlecha * Math.sin(theta - Math.PI / 2);
-
+            double xPunta1 = endX - tamanoFlecha * Math.cos(angulo - anguloApertura);
+            double yPunta1 = endY - tamanoFlecha * Math.sin(angulo - anguloApertura);
+            double xPunta2 = endX - tamanoFlecha * Math.cos(angulo + anguloApertura);
+            double yPunta2 = endY - tamanoFlecha * Math.sin(angulo + anguloApertura);
 
             puntaFlecha.getPoints().setAll(
-                    puntaX, puntaY,
-                    esq1X, esq1Y,
-                    esq2X, esq2Y
+                    endX, endY,
+                    xPunta1, yPunta1,
+                    xPunta2, yPunta2
             );
+            puntaFlecha.setFill(Color.web("#2c3e50"));
 
+            double retroceso = tamanoFlecha * 0.8;
+            linea.setStartX(startX);
+            linea.setStartY(startY);
+            linea.setEndX(endX - (dx / distancia) * retroceso);
+            linea.setEndY(endY - (dy / distancia) * retroceso);
 
-            linea.setStartX(inicioX + radio * Math.cos(theta));
-            linea.setStartY(inicioY + radio * Math.sin(theta));
-            linea.setEndX(baseMediaX);
-            linea.setEndY(baseMediaY);
+            linea.setStroke(Color.web("#2c3e50"));
+            linea.setStrokeWidth(2);
+
+            double medioX = (startX + endX) / 2;
+            double medioY = (startY + endY) / 2;
+
+            double nx = dy / distancia;
+            double ny = -dx / distancia;
+            if (ny > 0) {
+                nx = -nx;
+                ny = -ny;
+            }
+            double offsetX = nx * 20;
+            double offsetY = ny * 20;
+
+            campoSimbolo.setLayoutX(medioX + offsetX - 20);
+            campoSimbolo.setLayoutY(medioY + offsetY - 15);
         };
 
 
@@ -109,15 +127,20 @@ public class EditorProyectoController {
         destino.layoutYProperty().addListener(actualizadorFlecha);
 
 
-        actualizadorFlecha.changed(null, null, null);
+        actualizadorFlecha.invalidated(null);
+
 
         linea.getProperties().put("origen", origen);
         linea.getProperties().put("destino", destino);
         puntaFlecha.getProperties().put("origen", origen);
         puntaFlecha.getProperties().put("destino", destino);
+        campoSimbolo.getProperties().put("origen", origen);
+        campoSimbolo.getProperties().put("destino", destino);
+
 
         lienzo.getChildren().add(0, puntaFlecha);
         lienzo.getChildren().add(0, linea);
+        lienzo.getChildren().add(campoSimbolo);
     }
 
     public void setProyecto(Proyecto proyecto) {
