@@ -22,7 +22,10 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.shape.Line;
 import javafx.scene.input.MouseButton;
 import javafx.scene.shape.Polygon;
-import javafx.beans.value.ChangeListener;
+import com.proyectomsw.core.Estado;
+import com.proyectomsw.core.Transicion;
+import com.proyectomsw.database.EstadoDAO;
+import com.proyectomsw.database.TransicionDAO;
 
 public class EditorProyectoController {
 
@@ -136,6 +139,28 @@ public class EditorProyectoController {
         puntaFlecha.getProperties().put("destino", destino);
         campoSimbolo.getProperties().put("origen", origen);
         campoSimbolo.getProperties().put("destino", destino);
+
+        campoSimbolo.setOnAction(event -> {
+            if (this.proyectoActual != null) {
+                Object objOrigen = origen.getProperties().get("idEstadoDB");
+                Object objDestino = destino.getProperties().get("idEstadoDB");
+
+                if (objOrigen != null && objDestino != null) {
+                    Transicion nuevaTransicion = new Transicion();
+                    nuevaTransicion.setProyectoId(this.proyectoActual.getId());
+                    nuevaTransicion.setEstadoOrigenId((int) objOrigen);
+                    nuevaTransicion.setEstadoDestinoId((int) objDestino);
+                    nuevaTransicion.setEvento(campoSimbolo.getText());
+                    nuevaTransicion.setCondicionDisparo("");
+
+                    TransicionDAO.insertar(nuevaTransicion);
+
+                    campoSimbolo.setStyle("-fx-background-color: transparent; -fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 14px;");
+                    campoSimbolo.setEditable(false);
+                }
+            }
+            lienzo.requestFocus();
+        });
 
 
         lienzo.getChildren().add(0, puntaFlecha);
@@ -270,7 +295,6 @@ public class EditorProyectoController {
 
         nodoEstado.setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.MIDDLE) {
-
                 int idLiberado = (int) nodoEstado.getProperties().get("idEstado");
                 idsUsados.remove(idLiberado);
 
@@ -291,7 +315,18 @@ public class EditorProyectoController {
             }
             e.consume();
         });
+        if (this.proyectoActual != null) {
+            Estado nuevoEstado = new Estado();
+            nuevoEstado.setProyectoId(this.proyectoActual.getId());
+            nuevoEstado.setNombre("E" + idActual);
+            nuevoEstado.setDescripcion("Estado autogenerado");
+            nuevoEstado.setEsInicial(idActual == 1);
+            nuevoEstado.setPropiedadesJson("{}");
 
+            int idGeneradoDb = EstadoDAO.insertar(nuevoEstado);
+
+            nodoEstado.getProperties().put("idEstadoDB", idGeneradoDb);
+        }
 
         lienzo.getChildren().add(nodoEstado);
     }
