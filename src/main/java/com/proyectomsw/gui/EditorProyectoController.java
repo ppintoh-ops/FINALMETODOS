@@ -42,7 +42,7 @@ public class EditorProyectoController {
 
     private int obtenerSiguienteId() {
         int id = 1;
-        // Mientras el ID ya esté en uso, probamos con el siguiente número
+
         while (idsUsados.contains(id)) {
             id++;
         }

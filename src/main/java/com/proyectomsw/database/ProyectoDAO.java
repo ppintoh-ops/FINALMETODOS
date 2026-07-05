@@ -9,19 +9,22 @@ public class ProyectoDAO {
 
 
     public static boolean insertar(Proyecto proyecto) {
-        String sql = "INSERT INTO Proyecto(nombre, descripcion) VALUES(?, ?)";
+        String sql = "INSERT INTO proyecto (id, nombre, descripcion) VALUES (?, ?, ?)";
 
 
         Connection conn = ConexionDB.conectar();
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, proyecto.getNombre());
-            pstmt.setString(2, proyecto.getDescripcion());
-            pstmt.executeUpdate();
-            return true;
+            pstmt.setInt(1, proyecto.getId());
+            pstmt.setString(2, proyecto.getNombre());
+            pstmt.setString(3, proyecto.getDescripcion());
+            int filasAfectadas = pstmt.executeUpdate();
+
+            pstmt.close();
+            return filasAfectadas > 0;
 
         } catch (SQLException e) {
-            System.out.println(" Error al insertar el proyecto: " + e.getMessage());
+            System.out.println("Error al insertar: " + e.getMessage());
             return false;
         }
     }
@@ -66,5 +69,30 @@ public class ProyectoDAO {
             System.out.println(" Error al eliminar el proyecto: " + e.getMessage());
             return false;
         }
+    }
+
+    public static int obtenerSiguienteIdLibre() {
+
+        String sql = "SELECT COALESCE( " +
+                "  (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM Proyecto WHERE id = 1)), " +
+                "  (SELECT MIN(id + 1) FROM Proyecto WHERE (id + 1) NOT IN (SELECT id FROM Proyecto)) " +
+                ") AS siguiente_id";
+
+        try (Connection conn = ConexionDB.conectar();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            if (rs.next()) {
+                int id = rs.getInt("siguiente_id");
+                rs.close();
+                stmt.close();
+                return id;
+            }
+            rs.close();
+            stmt.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return 1;
     }
 }

@@ -49,8 +49,11 @@ public class VentanaPrincipalController {
             nuevoProyecto.setNombre(nombre);
             nuevoProyecto.setDescripcion("Proyecto creado desde la interfaz gráfica.");
 
+            int idInteligente = ProyectoDAO.obtenerSiguienteIdLibre();
+            nuevoProyecto.setId(idInteligente);
+
             if (ProyectoDAO.insertar(nuevoProyecto)) {
-                textoBienvenida.setText(" Proyecto guardado exitosamente.");
+                textoBienvenida.setText("Proyecto guardado exitosamente.");
                 textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #27ae60;");
                 cargarProyectosEnLista();
             } else {

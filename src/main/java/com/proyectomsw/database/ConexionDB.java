@@ -10,18 +10,13 @@ public class ConexionDB {
     private static Connection conexion = null;
 
     public static Connection conectar(){
-        if(conexion == null){
             try {
-                conexion = DriverManager.getConnection(URL);
-                System.out.println("Conexion a SQLite correcta");
-
-                inicializarBaseDeDatos();
-
-            } catch (SQLException e){
-                System.out.println("Error al conectar con la base de datos");
-                e.printStackTrace();
+                if (conexion == null || conexion.isClosed()) {
+                    conexion = DriverManager.getConnection(URL);
+                }
+            } catch (SQLException e) {
+                System.out.println("Error al conectar: " + e.getMessage());
             }
-        }
         return conexion;
     }
 public static void desconectar(){
