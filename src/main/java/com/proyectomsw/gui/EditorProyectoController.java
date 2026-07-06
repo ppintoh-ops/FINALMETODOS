@@ -312,6 +312,18 @@ public class EditorProyectoController {
                 circuloInterno.setVisible(esFinal);
 
                 nodoEstado.getProperties().put("esFinal", esFinal);
+            }else if (e.getButton() == MouseButton.PRIMARY && e.isShiftDown()) {
+                javafx.scene.control.TextInputDialog dialogo = new javafx.scene.control.TextInputDialog();
+                dialogo.setTitle("Propiedad Formal");
+                dialogo.setHeaderText("Asignar propiedad a " + texto.getText());
+                dialogo.setContentText("Escriba la regla lógica (ej. x > 0):");
+
+                dialogo.showAndWait().ifPresent(propiedadIngresada -> {
+                    nodoEstado.getProperties().put("propiedadFormal", propiedadIngresada);
+                    texto.setFill(Color.web("#f1c40f"));
+
+                    System.out.println("Propiedad asignada a " + texto.getText() + ": " + propiedadIngresada);
+                });
             }
             e.consume();
         });
