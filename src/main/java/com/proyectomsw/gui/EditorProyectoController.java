@@ -332,6 +332,71 @@ public class EditorProyectoController {
     }
 
     @FXML
+    public void detectarEstadosInalcanzables() {
+        java.util.List<Group> todosLosEstados = new java.util.ArrayList<>();
+        java.util.List<Line> todasLasTransiciones = new java.util.ArrayList<>();
+        Group estadoInicial = null;
+
+        for (Node nodo : lienzo.getChildren()) {
+            if (nodo instanceof Group) {
+                Group grupo = (Group) nodo;
+                todosLosEstados.add(grupo);
+                if (grupo.getProperties().get("idEstado") != null && (int) grupo.getProperties().get("idEstado") == 1) {
+                    estadoInicial = grupo;
+                }
+            } else if (nodo instanceof Line) {
+                Line linea = (Line) nodo;
+                if (linea.getProperties().containsKey("origen") && linea.getProperties().containsKey("destino")) {
+                    todasLasTransiciones.add(linea);
+                }
+            }
+        }
+
+        if (estadoInicial == null) {
+            System.out.println("No hay estado inicial (E1) definido.");
+            return;
+        }
+
+        java.util.Set<Group> estadosAlcanzables = new java.util.HashSet<>();
+        java.util.Queue<Group> cola = new java.util.LinkedList<>();
+
+        cola.add(estadoInicial);
+        estadosAlcanzables.add(estadoInicial);
+
+        while (!cola.isEmpty()) {
+            Group estadoActual = cola.poll();
+
+            for (Line transicion : todasLasTransiciones) {
+                Group origen = (Group) transicion.getProperties().get("origen");
+                Group destino = (Group) transicion.getProperties().get("destino");
+
+                if (origen.equals(estadoActual) && !estadosAlcanzables.contains(destino)) {
+                    estadosAlcanzables.add(destino);
+                    cola.add(destino);
+                }
+            }
+        }
+
+
+        int inalcanzablesEncontrados = 0;
+        for (Group estado : todosLosEstados) {
+            Circle circuloPrincipal = (Circle) estado.getChildren().get(0);
+
+            if (!estadosAlcanzables.contains(estado)) {
+                circuloPrincipal.setFill(Color.web("#7f8c8d"));
+                circuloPrincipal.setStroke(Color.web("#bdc3c7"));
+                inalcanzablesEncontrados++;
+            } else {
+                circuloPrincipal.setFill(Color.web("#3498db"));
+                circuloPrincipal.setStroke(Color.web("#2980b9"));
+            }
+        }
+
+        System.out.println("Análisis completado. Se encontraron " + inalcanzablesEncontrados + " estados inalcanzables.");
+    }
+
+
+    @FXML
     public void limpiarLienzo() {
 
         lienzo.getChildren().clear();

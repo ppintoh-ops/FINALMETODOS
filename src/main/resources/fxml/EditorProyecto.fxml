@@ -10,11 +10,14 @@
             <Button onAction="#volverAlMenu" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand; -fx-font-size: 14px; -fx-font-weight: bold;" text="⬅ Volver al Menú" />
             <Label fx:id="tituloProyecto" style="-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;" text="Cargando entorno..." />
          <Button alignment="BASELINE_LEFT" contentDisplay="RIGHT" onAction="#limpiarLienzo" prefHeight="30.0" prefWidth="74.0" style="-fx-background-color: black; -fx-font-weight: bold; -fx-font-size: 14; -fx-cursor: hand;" text="Limpiar" textFill="WHITE" />
+         <Button onAction="#detectarEstadosInalcanzables" style="-fx-background-color: black; -fx-font-weight: bold; -fx-font-size: 14;" text="Detectar Inalcanzables" textFill="WHITE" />
         </HBox>
     </top>
 
     <center>
         <Pane fx:id="lienzo" onMouseClicked="#clicEnLienzo" style="-fx-background-color: #ecf0f1;" />
     </center>
+
+
 
 </BorderPane>
