@@ -1,6 +1,7 @@
 package com.proyectomsw.gui;
 
-import com.proyectomsw.core.Proyecto;
+import com.proyectomsw.core.*;
+import com.proyectomsw.database.HistorialSimulacionDAO;
 import javafx.beans.InvalidationListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -22,10 +23,9 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.shape.Line;
 import javafx.scene.input.MouseButton;
 import javafx.scene.shape.Polygon;
-import com.proyectomsw.core.Estado;
-import com.proyectomsw.core.Transicion;
 import com.proyectomsw.database.EstadoDAO;
 import com.proyectomsw.database.TransicionDAO;
+import com.proyectomsw.database.HistorialSimulacionDAO;
 
 public class EditorProyectoController {
 
@@ -40,6 +40,7 @@ public class EditorProyectoController {
     private java.util.HashSet<Integer> idsUsados = new java.util.HashSet<>();
     private Group estadoOrigenParaTransicion = null;
     private Group estadoActualSimulacion = null;
+    private StringBuilder bitacoraSimulacion = new StringBuilder();
 
 
     private Proyecto proyectoActual;
@@ -142,28 +143,52 @@ public class EditorProyectoController {
         campoSimbolo.getProperties().put("destino", destino);
 
         campoSimbolo.setOnAction(event -> {
-            if (this.proyectoActual != null) {
+            try {
+                System.out.println("--- INICIANDO GUARDADO DE TRANSICIÓN ---");
+
+                com.proyectomsw.core.Proyecto p = com.proyectomsw.core.AppSession.getCurrentProyecto();
+                if (p == null) {
+                    System.err.println("ERROR: No hay proyecto en sesión.");
+                    return;
+                }
+
+                if (origen == null || destino == null) {
+                    System.err.println("ERROR: Los nodos origen o destino no existen.");
+                    return;
+                }
+
                 Object objOrigen = origen.getProperties().get("idEstadoDB");
                 Object objDestino = destino.getProperties().get("idEstadoDB");
 
-                if (objOrigen != null && objDestino != null) {
-                    Transicion nuevaTransicion = new Transicion();
-                    nuevaTransicion.setProyectoId(this.proyectoActual.getId());
-                    nuevaTransicion.setEstadoOrigenId((int) objOrigen);
-                    nuevaTransicion.setEstadoDestinoId((int) objDestino);
-                    nuevaTransicion.setEvento(campoSimbolo.getText());
-                    nuevaTransicion.setCondicionDisparo("");
+                if (objOrigen == null || objDestino == null) {
+                    System.err.println("ERROR: Faltan IDs. Origen: " + objOrigen + ", Destino: " + objDestino);
+                    return;
+                }
 
-                    TransicionDAO.insertar(nuevaTransicion);
+                Transicion t = new Transicion();
+                t.setProyectoId(p.getId());
+                t.setEstadoOrigenId((int) objOrigen);
+                t.setEstadoDestinoId((int) objDestino);
+                t.setEvento(campoSimbolo.getText() != null ? campoSimbolo.getText() : "");
+                t.setCondicionDisparo("");
 
+                int idGuardado = TransicionDAO.insertar(t);
+
+                if (idGuardado > 0) {
+                    System.out.println("ÉXITO: Transición guardada con ID: " + idGuardado);
                     campoSimbolo.setStyle("-fx-background-color: transparent; -fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 14px;");
                     campoSimbolo.setEditable(false);
+                } else {
+                    System.err.println("ERROR: Falló el guardado en la Base de Datos (Devolvió 0).");
                 }
+
+            } catch (Exception e) {
+                System.err.println("EXCEPCIÓN CRÍTICA al presionar Enter:");
+                e.printStackTrace();
+            } finally {
+                lienzo.requestFocus();
             }
-            lienzo.requestFocus();
         });
-
-
         lienzo.getChildren().add(0, puntaFlecha);
         lienzo.getChildren().add(0, linea);
         lienzo.getChildren().add(campoSimbolo);
@@ -171,7 +196,7 @@ public class EditorProyectoController {
 
     public void setProyecto(Proyecto proyecto) {
         this.proyectoActual = proyecto;
-        tituloProyecto.setText("Lienzo de Modelado: " + proyecto.getNombre());
+        System.out.println("DEBUG: setProyecto ejecutado en instancia: " + this.hashCode());
     }
 
     @FXML
@@ -248,7 +273,6 @@ public class EditorProyectoController {
         }
 
 
-
         nodoEstado.setLayoutX(posicionX);
         nodoEstado.setLayoutY(posicionY);
 
@@ -258,8 +282,7 @@ public class EditorProyectoController {
             if (e.getButton() == MouseButton.PRIMARY) {
                 offsetArrastreX = nodoEstado.getLayoutX() - e.getSceneX();
                 offsetArrastreY = nodoEstado.getLayoutY() - e.getSceneY();
-            }
-            else if (e.getButton() == MouseButton.SECONDARY) {
+            } else if (e.getButton() == MouseButton.SECONDARY) {
                 if (estadoOrigenParaTransicion == null) {
                     estadoOrigenParaTransicion = nodoEstado;
                     circulo.setStroke(Color.web("#e74c3c"));
@@ -307,13 +330,12 @@ public class EditorProyectoController {
                 if (estadoOrigenParaTransicion == nodoEstado) {
                     estadoOrigenParaTransicion = null;
                 }
-            }
-            else if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
+            } else if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
                 boolean esFinal = !circuloInterno.isVisible();
                 circuloInterno.setVisible(esFinal);
 
                 nodoEstado.getProperties().put("esFinal", esFinal);
-            }else if (e.getButton() == MouseButton.PRIMARY && e.isShiftDown()) {
+            } else if (e.getButton() == MouseButton.PRIMARY && e.isShiftDown()) {
                 javafx.scene.control.TextInputDialog dialogo = new javafx.scene.control.TextInputDialog();
                 dialogo.setTitle("Propiedad Formal");
                 dialogo.setHeaderText("Asignar propiedad a " + texto.getText());
@@ -328,17 +350,28 @@ public class EditorProyectoController {
             }
             e.consume();
         });
-        if (this.proyectoActual != null) {
+        com.proyectomsw.core.Proyecto proyectoEnSesion = com.proyectomsw.core.AppSession.getCurrentProyecto();
+
+        if (proyectoEnSesion == null) {
+            System.err.println("¡ADVERTENCIA! No hay proyecto en AppSession. El estado se dibujará pero NO se guardará en la base de datos.");
+        } else {
             Estado nuevoEstado = new Estado();
-            nuevoEstado.setProyectoId(this.proyectoActual.getId());
+            nuevoEstado.setProyectoId(proyectoEnSesion.getId());
             nuevoEstado.setNombre("E" + idActual);
             nuevoEstado.setDescripcion("Estado autogenerado");
+
             nuevoEstado.setEsInicial(idActual == 1);
+
             nuevoEstado.setPropiedadesJson("{}");
 
             int idGeneradoDb = EstadoDAO.insertar(nuevoEstado);
 
-            nodoEstado.getProperties().put("idEstadoDB", idGeneradoDb);
+            if (idGeneradoDb > 0) {
+                nodoEstado.getProperties().put("idEstadoDB", idGeneradoDb);
+                System.out.println("Estado guardado exitosamente con ID: " + idGeneradoDb);
+            } else {
+                System.err.println("Error al insertar el estado en la base de datos.");
+            }
         }
 
         lienzo.getChildren().add(nodoEstado);
@@ -434,7 +467,7 @@ public class EditorProyectoController {
                     Circle circulo = (Circle) grupo.getChildren().get(0);
                     circulo.setFill(Color.web("#2ecc71"));
                     circulo.setStroke(Color.web("#27ae60"));
-
+                    bitacoraSimulacion.append("-> Simulación iniciada. Punto de partida: Estado Inicial.\n");
                     evaluarPropiedadActual();
                     break;
                 }
@@ -457,7 +490,6 @@ public class EditorProyectoController {
         dialogo.showAndWait().ifPresent(eventoIngresado -> {
             boolean caminoEncontrado = false;
 
-            // 2. Buscar entre todos los TextField (las etiquetas de las flechas)
             for (Node nodo : lienzo.getChildren()) {
                 if (nodo instanceof javafx.scene.control.TextField) {
                     javafx.scene.control.TextField campo = (javafx.scene.control.TextField) nodo;
@@ -477,6 +509,10 @@ public class EditorProyectoController {
 
                         caminoEncontrado = true;
 
+                        Text textoDestino = (Text) destino.getChildren().get(2);
+                        bitacoraSimulacion.append("-> Transición exitosa [").append(eventoIngresado).append("]\n");
+                        bitacoraSimulacion.append("   Llegada al estado: ").append(textoDestino.getText()).append("\n");
+
                         evaluarPropiedadActual();
                         break;
                     }
@@ -488,6 +524,7 @@ public class EditorProyectoController {
                 alerta.setHeaderText("Camino no válido");
                 alerta.setContentText("No existe ninguna transición desde este estado usando el evento: '" + eventoIngresado + "'");
                 alerta.show();
+                bitacoraSimulacion.append("-> Intento fallido de transición con evento [").append(eventoIngresado).append("]\n");
             }
         });
     }
@@ -497,6 +534,7 @@ public class EditorProyectoController {
             String regla = (String) estadoActualSimulacion.getProperties().get("propiedadFormal");
 
             javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+            bitacoraSimulacion.append("   [VERIFICACIÓN] Se evaluó la regla: ").append(regla).append("\n");
             alerta.setTitle("Verificación Automática");
             alerta.setHeaderText("¡Estado con Propiedad Formal Detectado!");
             alerta.setContentText("El sistema debe cumplir la regla: [ " + regla + " ] en este punto.");
@@ -504,4 +542,30 @@ public class EditorProyectoController {
         }
     }
 
+    @FXML
+    private void finalizarSimulacion(ActionEvent event) {
+        com.proyectomsw.core.Proyecto proyectoEnSesion = com.proyectomsw.core.AppSession.getCurrentProyecto();
+
+        if (proyectoEnSesion == null) {
+            System.err.println("¡ERROR! No hay proyecto guardado en AppSession.");
+            return;
+        }
+
+        try {
+            String textoHistorial = bitacoraSimulacion.toString();
+
+            HistorialSimulacion historial = new HistorialSimulacion(proyectoEnSesion.getId(), textoHistorial);
+
+            boolean guardado = HistorialSimulacionDAO.insertar(historial);
+
+            if (guardado) {
+                System.out.println("Historial guardado exitosamente.");
+                bitacoraSimulacion.setLength(0);
+            } else {
+                System.err.println("Error al guardar en base de datos.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

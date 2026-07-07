@@ -1,16 +1,19 @@
 package com.proyectomsw.gui;
 
+import com.proyectomsw.core.AppSession;
 import com.proyectomsw.core.Proyecto;
 import com.proyectomsw.database.ProyectoDAO;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextInputDialog;
 import java.util.List;
 import java.util.Optional;
+import javafx.scene.control.*;
 
 public class VentanaPrincipalController {
 
@@ -65,14 +68,12 @@ public class VentanaPrincipalController {
 
     @FXML
     public void eliminarProyecto(ActionEvent event) {
-
         Proyecto seleccionado = listaProyectos.getSelectionModel().getSelectedItem();
 
         if (seleccionado != null) {
-
+            AppSession.setCurrentProyecto(seleccionado);
             if (ProyectoDAO.eliminar(seleccionado.getId())) {
                 textoBienvenida.setText(" Proyecto '" + seleccionado.getNombre() + "' eliminado.");
-                textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e67e22;");
                 cargarProyectosEnLista();
             }
         }
@@ -83,15 +84,16 @@ public class VentanaPrincipalController {
         Proyecto seleccionado = listaProyectos.getSelectionModel().getSelectedItem();
 
         if (seleccionado != null) {
-            try{
+
+            com.proyectomsw.core.AppSession.setCurrentProyecto(seleccionado);
+
+            try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/EditorProyecto.fxml"));
-                javafx.scene.Parent raiz = loader.load();
-                EditorProyectoController controladorEditor = loader.getController();
-                controladorEditor.setProyecto(seleccionado);
+                Parent raiz = loader.load();
+
                 javafx.stage.Stage escenario = (javafx.stage.Stage) btnAbrir.getScene().getWindow();
                 escenario.setScene(new javafx.scene.Scene(raiz, 800, 600));
-            }catch (Exception e){
-                textoBienvenida.setText(" Error al abrir el entorno de trabajo.");
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }

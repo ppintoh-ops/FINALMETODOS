@@ -6,14 +6,12 @@ public class HistorialSimulacion {
     private String fechaSimulacion;
     private String logJson;
 
-    public HistorialSimulacion() {
+    public HistorialSimulacion(int proyectoId, String logJson) {
+        this.proyectoId = proyectoId;
+        this.logJson = logJson;
     }
 
-    public HistorialSimulacion(int id, int proyectoId, String fechaSimulacion, String logJson) {
-        this.id = id;
-        this.proyectoId = proyectoId;
-        this.fechaSimulacion = fechaSimulacion;
-        this.logJson = logJson;
+    public HistorialSimulacion() {
     }
 
     public int getId() { return id; }

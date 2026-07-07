@@ -19,6 +19,7 @@
          <children>
             <Button mnemonicParsing="false" onAction="#iniciarSimulacion" text="Iniciar Simulación" />
             <Button mnemonicParsing="false" onAction="#avanzarSimulacion" text="Avanzar Paso" />
+            <Button mnemonicParsing="false" onAction="#finalizarSimulacion" text="Finalizar simulacion" />
          </children></HBox>
     </bottom>
 

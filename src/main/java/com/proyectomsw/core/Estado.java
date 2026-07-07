@@ -8,18 +8,6 @@ public class Estado {
     private boolean esInicial;
     private String propiedadesJson;
 
-    public Estado() {
-    }
-
-    public Estado(int id, int proyectoId, String nombre, String descripcion, boolean esInicial, String propiedadesJson) {
-        this.id = id;
-        this.proyectoId = proyectoId;
-        this.nombre = nombre;
-        this.descripcion = descripcion;
-        this.esInicial = esInicial;
-        this.propiedadesJson = propiedadesJson;
-    }
-
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
