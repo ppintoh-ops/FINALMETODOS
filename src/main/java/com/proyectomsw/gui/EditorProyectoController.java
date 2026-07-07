@@ -39,6 +39,7 @@ public class EditorProyectoController {
     private double offsetArrastreY;
     private java.util.HashSet<Integer> idsUsados = new java.util.HashSet<>();
     private Group estadoOrigenParaTransicion = null;
+    private Group estadoActualSimulacion = null;
 
 
     private Proyecto proyectoActual;
@@ -419,4 +420,88 @@ public class EditorProyectoController {
 
         estadoOrigenParaTransicion = null;
     }
+
+    @FXML
+    public void iniciarSimulacion() {
+        if (lienzo.getChildren().isEmpty()) return;
+
+        for (Node nodo : lienzo.getChildren()) {
+            if (nodo instanceof Group) {
+                Group grupo = (Group) nodo;
+                if (grupo.getProperties().get("idEstado") != null && (int) grupo.getProperties().get("idEstado") == 1) {
+                    estadoActualSimulacion = grupo;
+
+                    Circle circulo = (Circle) grupo.getChildren().get(0);
+                    circulo.setFill(Color.web("#2ecc71"));
+                    circulo.setStroke(Color.web("#27ae60"));
+
+                    evaluarPropiedadActual();
+                    break;
+                }
+            }
+        }
+        System.out.println("Simulación iniciada en E1.");
+    }
+
+    @FXML
+    public void avanzarSimulacion() {
+        if (estadoActualSimulacion == null) {
+            System.out.println("Primero debes iniciar la simulación.");
+            return;
+        }
+        javafx.scene.control.TextInputDialog dialogo = new javafx.scene.control.TextInputDialog();
+        dialogo.setTitle("Simulador Paso a Paso");
+        dialogo.setHeaderText("Estás en el estado actual.");
+        dialogo.setContentText("Ingresa el evento para avanzar (ej. a, 1, ε):");
+
+        dialogo.showAndWait().ifPresent(eventoIngresado -> {
+            boolean caminoEncontrado = false;
+
+            // 2. Buscar entre todos los TextField (las etiquetas de las flechas)
+            for (Node nodo : lienzo.getChildren()) {
+                if (nodo instanceof javafx.scene.control.TextField) {
+                    javafx.scene.control.TextField campo = (javafx.scene.control.TextField) nodo;
+                    Group origen = (Group) campo.getProperties().get("origen");
+                    Group destino = (Group) campo.getProperties().get("destino");
+
+                    if (origen != null && origen.equals(estadoActualSimulacion) && campo.getText().equals(eventoIngresado)) {
+
+                        Circle circuloViejo = (Circle) estadoActualSimulacion.getChildren().get(0);
+                        circuloViejo.setFill(Color.web("#3498db"));
+                        circuloViejo.setStroke(Color.web("#2980b9"));
+
+                        estadoActualSimulacion = destino;
+                        Circle circuloNuevo = (Circle) estadoActualSimulacion.getChildren().get(0);
+                        circuloNuevo.setFill(Color.web("#2ecc71"));
+                        circuloNuevo.setStroke(Color.web("#27ae60"));
+
+                        caminoEncontrado = true;
+
+                        evaluarPropiedadActual();
+                        break;
+                    }
+                }
+            }
+
+            if (!caminoEncontrado) {
+                javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.WARNING);
+                alerta.setHeaderText("Camino no válido");
+                alerta.setContentText("No existe ninguna transición desde este estado usando el evento: '" + eventoIngresado + "'");
+                alerta.show();
+            }
+        });
+    }
+
+    private void evaluarPropiedadActual() {
+        if (estadoActualSimulacion.getProperties().containsKey("propiedadFormal")) {
+            String regla = (String) estadoActualSimulacion.getProperties().get("propiedadFormal");
+
+            javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+            alerta.setTitle("Verificación Automática");
+            alerta.setHeaderText("¡Estado con Propiedad Formal Detectado!");
+            alerta.setContentText("El sistema debe cumplir la regla: [ " + regla + " ] en este punto.");
+            alerta.show();
+        }
+    }
+
 }
