@@ -39,7 +39,7 @@ public class HistorialSimulacionDAO {
             pstmt.setInt(1, proyectoId);
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
-                lista.add(new HistorialSimulacion(rs.getInt("proyecto_id"), rs.getString("texto_historial")));
+                lista.add(new HistorialSimulacion(rs.getInt("proyecto_id"), rs.getString("log_json")));
             }
         } catch (SQLException e) {
             System.err.println("Error al cargar historial: " + e.getMessage());

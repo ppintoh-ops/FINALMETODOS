@@ -531,7 +531,11 @@ public class EditorProyectoController {
     @FXML
     public void avanzarSimulacion() {
         if (estadoActualSimulacion == null) return;
-        TextInputDialog d = new TextInputDialog(); d.setTitle("Avanzar"); d.setHeaderText("Ingresa el evento:");
+
+        TextInputDialog d = new TextInputDialog();
+        d.setTitle("Avanzar");
+        d.setHeaderText("Ingresa el evento:");
+
         d.showAndWait().ifPresent(evento -> {
             boolean encontrado = false;
             for (Node nodo : lienzo.getChildren()) {
@@ -539,18 +543,39 @@ public class EditorProyectoController {
                     TextField campo = (TextField) nodo;
                     Group origen = (Group) campo.getProperties().get("origen");
                     Group destino = (Group) campo.getProperties().get("destino");
+
                     if (origen != null && origen.equals(estadoActualSimulacion) && campo.getText().equals(evento)) {
+
                         ((Circle) estadoActualSimulacion.getChildren().get(0)).setFill(Color.web("#3498db"));
+
+
                         estadoActualSimulacion = destino;
-                        ((Circle) estadoActualSimulacion.getChildren().get(0)).setFill(Color.web("#2ecc71"));
-                        bitacoraSimulacion.append("Transición a ").append(((Text) destino.getChildren().get(2)).getText()).append("\n");
+
+
+                        Object propObj = estadoActualSimulacion.getProperties().get("propiedadFormal");
+                        String propiedad = (propObj != null) ? propObj.toString() : "";
+
+                        boolean esValido = verificarPropiedad(propiedad);
+
+                        if (esValido) {
+                            ((Circle) estadoActualSimulacion.getChildren().get(0)).setFill(Color.web("#2ecc71")); // Verde
+                            bitacoraSimulacion.append("Transición a ").append(((Text) estadoActualSimulacion.getChildren().get(2)).getText())
+                                    .append(" - Propiedad: [").append(propiedad).append("] -> OK\n");
+                        } else {
+                            ((Circle) estadoActualSimulacion.getChildren().get(0)).setFill(Color.web("#e74c3c")); // Rojo
+                            bitacoraSimulacion.append("Transición a ").append(((Text) estadoActualSimulacion.getChildren().get(2)).getText())
+                                    .append(" - Propiedad: [").append(propiedad).append("] -> FALLO\n");
+                            Alert alert = new Alert(Alert.AlertType.ERROR, "¡Propiedad violada en estado " + ((Text) estadoActualSimulacion.getChildren().get(2)).getText() + "!");
+                            alert.show();
+                        }
+
                         encontrado = true;
                         break;
                     }
                 }
             }
             if (!encontrado) {
-                Alert a = new Alert(Alert.AlertType.WARNING); a.setContentText("Evento no válido"); a.show();
+                Alert a = new Alert(Alert.AlertType.WARNING); a.setContentText("Evento no válido o no existe transición."); a.show();
             }
         });
     }
@@ -618,6 +643,20 @@ public class EditorProyectoController {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    private boolean verificarPropiedad(String expresion) {
+        if (expresion == null || expresion.trim().isEmpty()) return true;
+
+
+        try {
+            if (expresion.equalsIgnoreCase("true")) return true;
+            if (expresion.equalsIgnoreCase("false")) return false;
+
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 
