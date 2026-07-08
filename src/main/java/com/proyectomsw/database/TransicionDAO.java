@@ -58,7 +58,7 @@ public class TransicionDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener transiciones: " + e.getMessage());
+            System.err.println("¡ERROR SQL CRÍTICO al cargar transiciones!: " + e.getMessage());
         }
         return transiciones;
     }

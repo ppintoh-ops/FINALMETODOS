@@ -7,16 +7,13 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.stage.Stage;
 import java.util.List;
 import java.util.Optional;
-import javafx.scene.control.*;
 
 public class VentanaPrincipalController {
-
 
     @FXML private Label textoBienvenida;
     @FXML private ListView<Proyecto> listaProyectos;
@@ -27,38 +24,48 @@ public class VentanaPrincipalController {
     @FXML
     public void initialize() {
         cargarProyectosEnLista();
+
         listaProyectos.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             boolean haySeleccion = (newValue != null);
             btnAbrir.setDisable(!haySeleccion);
             btnEliminar.setDisable(!haySeleccion);
         });
-    }
 
+        listaProyectos.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2 && listaProyectos.getSelectionModel().getSelectedItem() != null) {
+                abrirProyecto(null);
+            }
+        });
+    }
 
     @FXML
     public void crearProyecto(ActionEvent event) {
-
         TextInputDialog dialogo = new TextInputDialog("Nuevo Proyecto");
         dialogo.setTitle("Crear Proyecto");
         dialogo.setHeaderText("Inicializar nuevo modelo formal");
         dialogo.setContentText("Por favor, ingresa el nombre del proyecto:");
 
-
         Optional<String> resultado = dialogo.showAndWait();
-
 
         resultado.ifPresent(nombre -> {
             Proyecto nuevoProyecto = new Proyecto();
             nuevoProyecto.setNombre(nombre);
             nuevoProyecto.setDescripcion("Proyecto creado desde la interfaz gráfica.");
 
-            int idInteligente = ProyectoDAO.obtenerSiguienteIdLibre();
-            nuevoProyecto.setId(idInteligente);
+
 
             if (ProyectoDAO.insertar(nuevoProyecto)) {
-                textoBienvenida.setText("Proyecto guardado exitosamente.");
-                textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #27ae60;");
-                cargarProyectosEnLista();
+                AppSession.setCurrentProyecto(nuevoProyecto);
+
+                try {
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/EditorProyecto.fxml"));
+                    Parent raiz = loader.load();
+
+                    Stage escenario = (Stage) btnAbrir.getScene().getWindow();
+                    escenario.setScene(new Scene(raiz, 800, 600));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             } else {
                 textoBienvenida.setText(" Error al guardar el proyecto.");
                 textoBienvenida.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e74c3c;");
@@ -71,9 +78,15 @@ public class VentanaPrincipalController {
         Proyecto seleccionado = listaProyectos.getSelectionModel().getSelectedItem();
 
         if (seleccionado != null) {
-            AppSession.setCurrentProyecto(seleccionado);
+
             if (ProyectoDAO.eliminar(seleccionado.getId())) {
+
+                if (AppSession.getCurrentProyecto() != null && AppSession.getCurrentProyecto().getId() == seleccionado.getId()) {
+                    AppSession.setCurrentProyecto(null);
+                }
+
                 textoBienvenida.setText(" Proyecto '" + seleccionado.getNombre() + "' eliminado.");
+                textoBienvenida.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
                 cargarProyectosEnLista();
             }
         }
@@ -84,15 +97,14 @@ public class VentanaPrincipalController {
         Proyecto seleccionado = listaProyectos.getSelectionModel().getSelectedItem();
 
         if (seleccionado != null) {
-
-            com.proyectomsw.core.AppSession.setCurrentProyecto(seleccionado);
+            AppSession.setCurrentProyecto(seleccionado);
 
             try {
                 FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/EditorProyecto.fxml"));
                 Parent raiz = loader.load();
 
-                javafx.stage.Stage escenario = (javafx.stage.Stage) btnAbrir.getScene().getWindow();
-                escenario.setScene(new javafx.scene.Scene(raiz, 800, 600));
+                Stage escenario = (Stage) btnAbrir.getScene().getWindow();
+                escenario.setScene(new Scene(raiz, 800, 600));
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -104,5 +116,4 @@ public class VentanaPrincipalController {
         List<Proyecto> proyectosGuardados = ProyectoDAO.obtenerTodos();
         listaProyectos.getItems().addAll(proyectosGuardados);
     }
-
 }

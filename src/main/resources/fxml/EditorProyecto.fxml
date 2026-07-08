@@ -20,7 +20,12 @@
             <Button mnemonicParsing="false" onAction="#iniciarSimulacion" text="Iniciar Simulación" />
             <Button mnemonicParsing="false" onAction="#avanzarSimulacion" text="Avanzar Paso" />
             <Button mnemonicParsing="false" onAction="#finalizarSimulacion" text="Finalizar simulacion" />
-         </children></HBox>
+         </children>
+            <Button onAction="#exportarProyectoCompleto"
+                    style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;"
+                    text="💾 Exportar Informe" />
+        </HBox>
+
     </bottom>
 
     <center>

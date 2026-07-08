@@ -40,17 +40,28 @@ public class ProyectoDAO {
     }
 
     public static boolean insertar(Proyecto p) {
-        String sql = "INSERT INTO Proyecto (id, nombre, descripcion) VALUES (?, ?, ?)";
-        try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, p.getId());
-            pstmt.setString(2, p.getNombre());
-            pstmt.setString(3, p.getDescripcion());
-            return pstmt.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Error al insertar: " + e.getMessage());
-            return false;
+        String sql = "INSERT INTO Proyecto (nombre, descripcion) VALUES (?, ?)";
+
+        try (java.sql.Connection conn = ConexionDB.getConexion();
+             java.sql.PreparedStatement pstmt = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setString(1, p.getNombre());
+            pstmt.setString(2, p.getDescripcion());
+
+            int filasAfectadas = pstmt.executeUpdate();
+
+            if (filasAfectadas > 0) {
+                try (java.sql.ResultSet rs = pstmt.getGeneratedKeys()) {
+                    if (rs.next()) {
+                        p.setId(rs.getInt(1));
+                    }
+                }
+                return true;
+            }
+        } catch (java.sql.SQLException e) {
+            System.err.println("Error al insertar Proyecto: " + e.getMessage());
         }
+        return false;
     }
 
     public static boolean eliminar(int id) {

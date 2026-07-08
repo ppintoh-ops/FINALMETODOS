@@ -1,7 +1,11 @@
 package com.proyectomsw.gui;
 
 import com.proyectomsw.core.*;
+import com.proyectomsw.database.EstadoDAO;
+import com.proyectomsw.database.TransicionDAO;
 import com.proyectomsw.database.HistorialSimulacionDAO;
+
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -9,9 +13,9 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
+import javafx.scene.control.*;
 import javafx.stage.Stage;
-import java.io.IOException;
+import javafx.stage.FileChooser;
 import javafx.scene.layout.Pane;
 import javafx.scene.shape.Circle;
 import javafx.scene.paint.Color;
@@ -23,202 +27,96 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.shape.Line;
 import javafx.scene.input.MouseButton;
 import javafx.scene.shape.Polygon;
-import com.proyectomsw.database.EstadoDAO;
-import com.proyectomsw.database.TransicionDAO;
-import com.proyectomsw.database.HistorialSimulacionDAO;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
+import javafx.util.Duration;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.*;
 
 public class EditorProyectoController {
 
-    @FXML
-    private Label tituloProyecto;
-
-    @FXML
-    private Pane lienzo;
+    @FXML private Label tituloProyecto;
+    @FXML private Pane lienzo;
 
     private double offsetArrastreX;
     private double offsetArrastreY;
-    private java.util.HashSet<Integer> idsUsados = new java.util.HashSet<>();
+    private HashSet<Integer> idsUsados = new HashSet<>();
     private Group estadoOrigenParaTransicion = null;
     private Group estadoActualSimulacion = null;
     private StringBuilder bitacoraSimulacion = new StringBuilder();
 
+    @FXML
+    public void initialize() {
+        Platform.runLater(this::cargarGrafoDesdeBD);
+    }
 
-    private Proyecto proyectoActual;
-
-    private int obtenerSiguienteId() {
+    private int obtenerSiguienteIdLogico() {
         int id = 1;
-
         while (idsUsados.contains(id)) {
             id++;
         }
         return id;
     }
 
-    private void crearTransicion(Group origen, Group destino) {
-        Line linea = new Line();
-        Polygon puntaFlecha = new Polygon();
+    private void cargarGrafoDesdeBD() {
+        Proyecto p = AppSession.getCurrentProyecto();
+        if (p == null) return;
 
+        lienzo.getChildren().clear();
+        idsUsados.clear();
+        estadoOrigenParaTransicion = null;
+        estadoActualSimulacion = null;
 
-        javafx.scene.control.TextField campoSimbolo = new javafx.scene.control.TextField("ε");
-        campoSimbolo.setPrefWidth(40);
-        campoSimbolo.setAlignment(javafx.geometry.Pos.CENTER);
-        campoSimbolo.setStyle("-fx-background-color: transparent; -fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-font-size: 14px;");
+        List<Estado> estados = EstadoDAO.obtenerPorProyecto(p.getId());
+        List<Transicion> transiciones = TransicionDAO.obtenerTransicionesPorProyecto(p.getId());
 
-        double radio = 25.0;
+        System.out.println("--- CARGANDO PROYECTO ---");
+        System.out.println("Estados encontrados en BD: " + estados.size());
+        System.out.println("Transiciones encontradas en BD: " + transiciones.size());
 
-        InvalidationListener actualizadorFlecha = observable -> {
-            double x1 = origen.getLayoutX();
-            double y1 = origen.getLayoutY();
-            double x2 = destino.getLayoutX();
-            double y2 = destino.getLayoutY();
+        HashMap<Integer, Group> mapaEstadosVisuales = new HashMap<>();
 
-            double dx = x2 - x1;
-            double dy = y2 - y1;
-            double distancia = Math.sqrt(dx * dx + dy * dy);
+        double startX = 100;
+        double startY = 150;
 
-            if (distancia == 0) return;
+        for (Estado est : estados) {
+            Group nodoVisual = dibujarEstado(est.getNombre(), est.getId(), startX, startY, est.isEsInicial());
+            mapaEstadosVisuales.put(est.getId(), nodoVisual);
 
-
-            double startX = x1 + (dx / distancia) * radio;
-            double startY = y1 + (dy / distancia) * radio;
-            double endX = x2 - (dx / distancia) * radio;
-            double endY = y2 - (dy / distancia) * radio;
-
-            double angulo = Math.atan2(dy, dx);
-            double tamanoFlecha = 15.0;
-            double anguloApertura = Math.toRadians(20);
-
-            double xPunta1 = endX - tamanoFlecha * Math.cos(angulo - anguloApertura);
-            double yPunta1 = endY - tamanoFlecha * Math.sin(angulo - anguloApertura);
-            double xPunta2 = endX - tamanoFlecha * Math.cos(angulo + anguloApertura);
-            double yPunta2 = endY - tamanoFlecha * Math.sin(angulo + anguloApertura);
-
-            puntaFlecha.getPoints().setAll(
-                    endX, endY,
-                    xPunta1, yPunta1,
-                    xPunta2, yPunta2
-            );
-            puntaFlecha.setFill(Color.web("#2c3e50"));
-
-            double retroceso = tamanoFlecha * 0.8;
-            linea.setStartX(startX);
-            linea.setStartY(startY);
-            linea.setEndX(endX - (dx / distancia) * retroceso);
-            linea.setEndY(endY - (dy / distancia) * retroceso);
-
-            linea.setStroke(Color.web("#2c3e50"));
-            linea.setStrokeWidth(2);
-
-            double medioX = (startX + endX) / 2;
-            double medioY = (startY + endY) / 2;
-
-            double nx = dy / distancia;
-            double ny = -dx / distancia;
-            if (ny > 0) {
-                nx = -nx;
-                ny = -ny;
-            }
-            double offsetX = nx * 20;
-            double offsetY = ny * 20;
-
-            campoSimbolo.setLayoutX(medioX + offsetX - 20);
-            campoSimbolo.setLayoutY(medioY + offsetY - 15);
-        };
-
-
-        origen.layoutXProperty().addListener(actualizadorFlecha);
-        origen.layoutYProperty().addListener(actualizadorFlecha);
-        destino.layoutXProperty().addListener(actualizadorFlecha);
-        destino.layoutYProperty().addListener(actualizadorFlecha);
-
-
-        actualizadorFlecha.invalidated(null);
-
-
-        linea.getProperties().put("origen", origen);
-        linea.getProperties().put("destino", destino);
-        puntaFlecha.getProperties().put("origen", origen);
-        puntaFlecha.getProperties().put("destino", destino);
-        campoSimbolo.getProperties().put("origen", origen);
-        campoSimbolo.getProperties().put("destino", destino);
-
-        campoSimbolo.setOnAction(event -> {
+            int idLogico = 1;
             try {
-                System.out.println("--- INICIANDO GUARDADO DE TRANSICIÓN ---");
-
-                com.proyectomsw.core.Proyecto p = com.proyectomsw.core.AppSession.getCurrentProyecto();
-                if (p == null) {
-                    System.err.println("ERROR: No hay proyecto en sesión.");
-                    return;
+                if (est.getNombre().startsWith("E")) {
+                    idLogico = Integer.parseInt(est.getNombre().substring(1));
                 }
+            } catch (Exception e) {}
 
-                if (origen == null || destino == null) {
-                    System.err.println("ERROR: Los nodos origen o destino no existen.");
-                    return;
-                }
+            nodoVisual.getProperties().put("idEstado", idLogico);
+            idsUsados.add(idLogico);
 
-                Object objOrigen = origen.getProperties().get("idEstadoDB");
-                Object objDestino = destino.getProperties().get("idEstadoDB");
-
-                if (objOrigen == null || objDestino == null) {
-                    System.err.println("ERROR: Faltan IDs. Origen: " + objOrigen + ", Destino: " + objDestino);
-                    return;
-                }
-
-                Transicion t = new Transicion();
-                t.setProyectoId(p.getId());
-                t.setEstadoOrigenId((int) objOrigen);
-                t.setEstadoDestinoId((int) objDestino);
-                t.setEvento(campoSimbolo.getText() != null ? campoSimbolo.getText() : "");
-                t.setCondicionDisparo("");
-
-                int idGuardado = TransicionDAO.insertar(t);
-
-                if (idGuardado > 0) {
-                    System.out.println("ÉXITO: Transición guardada con ID: " + idGuardado);
-                    campoSimbolo.setStyle("-fx-background-color: transparent; -fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 14px;");
-                    campoSimbolo.setEditable(false);
-                } else {
-                    System.err.println("ERROR: Falló el guardado en la Base de Datos (Devolvió 0).");
-                }
-
-            } catch (Exception e) {
-                System.err.println("EXCEPCIÓN CRÍTICA al presionar Enter:");
-                e.printStackTrace();
-            } finally {
-                lienzo.requestFocus();
+            startX += 120;
+            if (startX > 700) {
+                startX = 100;
+                startY += 120;
             }
-        });
-        lienzo.getChildren().add(0, puntaFlecha);
-        lienzo.getChildren().add(0, linea);
-        lienzo.getChildren().add(campoSimbolo);
-    }
+        }
 
-    public void setProyecto(Proyecto proyecto) {
-        this.proyectoActual = proyecto;
-        System.out.println("DEBUG: setProyecto ejecutado en instancia: " + this.hashCode());
-    }
+        for (Transicion t : transiciones) {
+            Group origen = mapaEstadosVisuales.get(t.getEstadoOrigenId());
+            Group destino = mapaEstadosVisuales.get(t.getEstadoDestinoId());
 
-    @FXML
-    public void volverAlMenu(ActionEvent event) {
-        try {
-
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/VentanaPrincipal.fxml"));
-            Parent raiz = loader.load();
-
-
-            Stage escenario = (Stage) ((Node) event.getSource()).getScene().getWindow();
-            escenario.setScene(new Scene(raiz, 800, 600));
-        } catch (IOException e) {
-            System.out.println("Error al volver al menú: " + e.getMessage());
+            if (origen != null && destino != null) {
+                dibujarTransicionCargada(origen, destino, t);
+            }
         }
     }
 
     @FXML
     public void clicEnLienzo(MouseEvent event) {
-        if (event.isConsumed() || event.getButton() != MouseButton.PRIMARY) {
-            return;
-        }
+        if (event.isConsumed() || event.getButton() != MouseButton.PRIMARY) return;
 
         double posicionX = event.getX();
         double posicionY = event.getY();
@@ -229,6 +127,37 @@ public class EditorProyectoController {
             return;
         }
 
+        Proyecto p = AppSession.getCurrentProyecto();
+        if (p == null) {
+            System.err.println("Error: No hay proyecto activo en sesión.");
+            return;
+        }
+
+        int idActual = obtenerSiguienteIdLogico();
+        idsUsados.add(idActual);
+        boolean esInicial = (idActual == 1);
+        String nombreEstado = "E" + idActual;
+
+        Estado nuevoEstado = new Estado();
+        nuevoEstado.setProyectoId(p.getId());
+        nuevoEstado.setNombre(nombreEstado);
+        nuevoEstado.setDescripcion("Estado autogenerado");
+        nuevoEstado.setEsInicial(esInicial);
+        nuevoEstado.setPropiedadesJson("{}");
+
+        int idGeneradoDb = EstadoDAO.insertar(nuevoEstado);
+
+        if (idGeneradoDb > 0) {
+            Group nodoVisual = dibujarEstado(nombreEstado, idGeneradoDb, posicionX, posicionY, esInicial);
+            nodoVisual.getProperties().put("idEstado", idActual);
+        } else {
+            System.err.println("Error al insertar el estado en la base de datos.");
+            idsUsados.remove(idActual);
+        }
+    }
+
+    private Group dibujarEstado(String nombre, int idDB, double x, double y, boolean esInicial) {
+        double radio = 20.0;
         Group nodoEstado = new Group();
 
         Circle circulo = new Circle(0, 0, radio);
@@ -243,10 +172,7 @@ public class EditorProyectoController {
         circuloInterno.setVisible(false);
         circuloInterno.setMouseTransparent(true);
 
-        int idActual = obtenerSiguienteId();
-        idsUsados.add(idActual);
-
-        Text texto = new Text("E" + idActual);
+        Text texto = new Text(nombre);
         texto.setFont(Font.font("System", FontWeight.BOLD, 12));
         texto.setFill(Color.WHITE);
         texto.setX(-7);
@@ -254,30 +180,20 @@ public class EditorProyectoController {
 
         nodoEstado.getChildren().addAll(circulo, circuloInterno, texto);
 
-        nodoEstado.getProperties().put("idEstado", idActual);
-
-        if (idActual == 1) {
+        if (esInicial || nombre.equals("E1")) {
             Line flechaInicioLinea = new Line(-45, 0, -20, 0);
             flechaInicioLinea.setStroke(Color.web("#2c3e50"));
             flechaInicioLinea.setStrokeWidth(2);
-
-
-            Polygon puntaInicio = new Polygon(
-                    -20, 0,
-                    -28, 5,
-                    -28, -5
-            );
+            Polygon puntaInicio = new Polygon(-20, 0, -28, 5, -28, -5);
             puntaInicio.setFill(Color.web("#2c3e50"));
-
             nodoEstado.getChildren().addAll(flechaInicioLinea, puntaInicio);
         }
 
-
-        nodoEstado.setLayoutX(posicionX);
-        nodoEstado.setLayoutY(posicionY);
-
+        nodoEstado.setLayoutX(x);
+        nodoEstado.setLayoutY(y);
         nodoEstado.setCursor(javafx.scene.Cursor.HAND);
 
+        nodoEstado.getProperties().put("idEstadoDB", idDB);
         nodoEstado.setOnMousePressed(e -> {
             if (e.getButton() == MouseButton.PRIMARY) {
                 offsetArrastreX = nodoEstado.getLayoutX() - e.getSceneX();
@@ -302,270 +218,371 @@ public class EditorProyectoController {
             if (e.getButton() == MouseButton.PRIMARY) {
                 double nuevaX = e.getSceneX() + offsetArrastreX;
                 double nuevaY = e.getSceneY() + offsetArrastreY;
-
-
-                double limiteDerecho = lienzo.getWidth() - radio;
-                double limiteInferior = lienzo.getHeight() - radio;
-
-
-                nuevaX = Math.max(radio, Math.min(nuevaX, limiteDerecho));
-                nuevaY = Math.max(radio, Math.min(nuevaY, limiteInferior));
-
-                nodoEstado.setLayoutX(nuevaX);
-                nodoEstado.setLayoutY(nuevaY);
+                nodoEstado.setLayoutX(Math.max(radio, Math.min(nuevaX, lienzo.getWidth() - radio)));
+                nodoEstado.setLayoutY(Math.max(radio, Math.min(nuevaY, lienzo.getHeight() - radio)));
             }
             e.consume();
         });
 
         nodoEstado.setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.MIDDLE) {
-                int idLiberado = (int) nodoEstado.getProperties().get("idEstado");
-                idsUsados.remove(idLiberado);
+                Object objId = nodoEstado.getProperties().get("idEstado");
+                if (objId != null) {
+                    idsUsados.remove((int) objId);
+                }
 
                 lienzo.getChildren().removeIf(nodo ->
                         nodoEstado.equals(nodo.getProperties().get("origen")) ||
                                 nodoEstado.equals(nodo.getProperties().get("destino"))
                 );
                 lienzo.getChildren().remove(nodoEstado);
-                if (estadoOrigenParaTransicion == nodoEstado) {
-                    estadoOrigenParaTransicion = null;
-                }
+                if (estadoOrigenParaTransicion == nodoEstado) estadoOrigenParaTransicion = null;
+
             } else if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2) {
                 boolean esFinal = !circuloInterno.isVisible();
                 circuloInterno.setVisible(esFinal);
-
                 nodoEstado.getProperties().put("esFinal", esFinal);
             } else if (e.getButton() == MouseButton.PRIMARY && e.isShiftDown()) {
-                javafx.scene.control.TextInputDialog dialogo = new javafx.scene.control.TextInputDialog();
+                TextInputDialog dialogo = new TextInputDialog();
                 dialogo.setTitle("Propiedad Formal");
                 dialogo.setHeaderText("Asignar propiedad a " + texto.getText());
-                dialogo.setContentText("Escriba la regla lógica (ej. x > 0):");
-
-                dialogo.showAndWait().ifPresent(propiedadIngresada -> {
-                    nodoEstado.getProperties().put("propiedadFormal", propiedadIngresada);
+                dialogo.setContentText("Escriba la regla lógica:");
+                dialogo.showAndWait().ifPresent(prop -> {
+                    nodoEstado.getProperties().put("propiedadFormal", prop);
                     texto.setFill(Color.web("#f1c40f"));
-
-                    System.out.println("Propiedad asignada a " + texto.getText() + ": " + propiedadIngresada);
                 });
             }
             e.consume();
         });
-        com.proyectomsw.core.Proyecto proyectoEnSesion = com.proyectomsw.core.AppSession.getCurrentProyecto();
-
-        if (proyectoEnSesion == null) {
-            System.err.println("¡ADVERTENCIA! No hay proyecto en AppSession. El estado se dibujará pero NO se guardará en la base de datos.");
-        } else {
-            Estado nuevoEstado = new Estado();
-            nuevoEstado.setProyectoId(proyectoEnSesion.getId());
-            nuevoEstado.setNombre("E" + idActual);
-            nuevoEstado.setDescripcion("Estado autogenerado");
-
-            nuevoEstado.setEsInicial(idActual == 1);
-
-            nuevoEstado.setPropiedadesJson("{}");
-
-            int idGeneradoDb = EstadoDAO.insertar(nuevoEstado);
-
-            if (idGeneradoDb > 0) {
-                nodoEstado.getProperties().put("idEstadoDB", idGeneradoDb);
-                System.out.println("Estado guardado exitosamente con ID: " + idGeneradoDb);
-            } else {
-                System.err.println("Error al insertar el estado en la base de datos.");
-            }
-        }
 
         lienzo.getChildren().add(nodoEstado);
+        return nodoEstado;
+    }
+
+    private void crearTransicion(Group origen, Group destino) {
+        Line linea = new Line();
+        Polygon puntaFlecha = new Polygon();
+        TextField campoSimbolo = new TextField("");
+        campoSimbolo.setPromptText("ε");
+        campoSimbolo.setPrefWidth(40);
+        campoSimbolo.setAlignment(javafx.geometry.Pos.CENTER);
+        campoSimbolo.setStyle("-fx-background-color: white; -fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-border-color: #e74c3c; -fx-border-radius: 5px;");
+
+        configurarMatematicaFlecha(origen, destino, linea, puntaFlecha, campoSimbolo);
+
+
+        campoSimbolo.setOnAction(e -> procesarGuardadoDeTransicion(campoSimbolo, origen, destino));
+
+        campoSimbolo.focusedProperty().addListener((obs, viejo, nuevo) -> {
+            if (!nuevo && campoSimbolo.isEditable()) {
+                procesarGuardadoDeTransicion(campoSimbolo, origen, destino);
+            }
+        });
+
+        lienzo.getChildren().add(0, puntaFlecha);
+        lienzo.getChildren().add(0, linea);
+        lienzo.getChildren().add(campoSimbolo);
+
+
+        campoSimbolo.requestFocus();
+    }
+
+    private void procesarGuardadoDeTransicion(TextField campoSimbolo, Group origen, Group destino) {
+        if (!campoSimbolo.isEditable()) return;
+
+        Proyecto p = AppSession.getCurrentProyecto();
+        if (p == null) return;
+
+        Object objOrigen = origen.getProperties().get("idEstadoDB");
+        Object objDestino = destino.getProperties().get("idEstadoDB");
+
+        if (objOrigen != null && objDestino != null) {
+            String evento = campoSimbolo.getText();
+            if (evento == null || evento.trim().isEmpty()) evento = "ε";
+
+            Transicion t = new Transicion();
+            t.setProyectoId(p.getId());
+            t.setEstadoOrigenId((int) objOrigen);
+            t.setEstadoDestinoId((int) objDestino);
+            t.setEvento(evento);
+            t.setCondicionDisparo("");
+
+            int idGuardado = TransicionDAO.insertar(t);
+
+            if (idGuardado > 0) {
+                campoSimbolo.setText(evento);
+                campoSimbolo.setStyle("-fx-background-color: transparent; -fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 14px; -fx-border-color: transparent;");
+                campoSimbolo.setEditable(false);
+                System.out.println("Transición guardada exitosamente con ID: " + idGuardado);
+            } else {
+                System.err.println("Fallo al guardar la transición en la Base de Datos.");
+            }
+        }
+        lienzo.requestFocus();
+    }
+
+    private void dibujarTransicionCargada(Group origen, Group destino, Transicion transicion) {
+        Line linea = new Line();
+        Polygon puntaFlecha = new Polygon();
+        TextField campoSimbolo = new TextField(transicion.getEvento());
+        campoSimbolo.setPrefWidth(40);
+        campoSimbolo.setAlignment(javafx.geometry.Pos.CENTER);
+        campoSimbolo.setStyle("-fx-background-color: transparent; -fx-text-fill: #27ae60; -fx-font-weight: bold; -fx-font-size: 14px;");
+        campoSimbolo.setEditable(false);
+
+        configurarMatematicaFlecha(origen, destino, linea, puntaFlecha, campoSimbolo);
+
+        lienzo.getChildren().add(0, puntaFlecha);
+        lienzo.getChildren().add(0, linea);
+        lienzo.getChildren().add(campoSimbolo);
+
+        Timeline reajusteTemporal = new Timeline(new KeyFrame(Duration.millis(150), e -> {
+            linea.setVisible(false); linea.setVisible(true);
+        }));
+        reajusteTemporal.play();
+    }
+
+    private void configurarMatematicaFlecha(Group origen, Group destino, Line linea, Polygon puntaFlecha, TextField campo) {
+        double radio = 25.0;
+
+        InvalidationListener actualizador = observable -> {
+            double x1 = origen.getLayoutX(); double y1 = origen.getLayoutY();
+            double x2 = destino.getLayoutX(); double y2 = destino.getLayoutY();
+            double dx = x2 - x1; double dy = y2 - y1;
+            double dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist == 0) return;
+
+            double startX = x1 + (dx / dist) * radio; double startY = y1 + (dy / dist) * radio;
+            double endX = x2 - (dx / dist) * radio; double endY = y2 - (dy / dist) * radio;
+            double angulo = Math.atan2(dy, dx);
+            double tamFlecha = 15.0; double apertura = Math.toRadians(20);
+
+            puntaFlecha.getPoints().setAll(
+                    endX, endY,
+                    endX - tamFlecha * Math.cos(angulo - apertura), endY - tamFlecha * Math.sin(angulo - apertura),
+                    endX - tamFlecha * Math.cos(angulo + apertura), endY - tamFlecha * Math.sin(angulo + apertura)
+            );
+            puntaFlecha.setFill(Color.web("#2c3e50"));
+
+            linea.setStartX(startX); linea.setStartY(startY);
+            linea.setEndX(endX - (dx / dist) * (tamFlecha * 0.8));
+            linea.setEndY(endY - (dy / dist) * (tamFlecha * 0.8));
+            linea.setStroke(Color.web("#2c3e50")); linea.setStrokeWidth(2);
+
+            double medioX = (startX + endX) / 2; double medioY = (startY + endY) / 2;
+            double nx = dy / dist; double ny = -dx / dist;
+            if (ny > 0) { nx = -nx; ny = -ny; }
+            campo.setLayoutX(medioX + (nx * 20) - 20);
+            campo.setLayoutY(medioY + (ny * 20) - 15);
+        };
+
+        origen.layoutXProperty().addListener(actualizador); origen.layoutYProperty().addListener(actualizador);
+        destino.layoutXProperty().addListener(actualizador); destino.layoutYProperty().addListener(actualizador);
+        actualizador.invalidated(null);
+
+        linea.getProperties().put("origen", origen); linea.getProperties().put("destino", destino);
+        campo.getProperties().put("origen", origen); campo.getProperties().put("destino", destino);
     }
 
     @FXML
     public void detectarEstadosInalcanzables() {
-        java.util.List<Group> todosLosEstados = new java.util.ArrayList<>();
-        java.util.List<Line> todasLasTransiciones = new java.util.ArrayList<>();
-        Group estadoInicial = null;
+        List<Group> todos = new ArrayList<>();
+        List<Line> transiciones = new ArrayList<>();
+        Group estInicial = null;
 
         for (Node nodo : lienzo.getChildren()) {
             if (nodo instanceof Group) {
-                Group grupo = (Group) nodo;
-                todosLosEstados.add(grupo);
-                if (grupo.getProperties().get("idEstado") != null && (int) grupo.getProperties().get("idEstado") == 1) {
-                    estadoInicial = grupo;
+                Group g = (Group) nodo;
+                todos.add(g);
+                if (g.getProperties().get("idEstado") != null && (int) g.getProperties().get("idEstado") == 1) {
+                    estInicial = g;
                 }
             } else if (nodo instanceof Line) {
-                Line linea = (Line) nodo;
-                if (linea.getProperties().containsKey("origen") && linea.getProperties().containsKey("destino")) {
-                    todasLasTransiciones.add(linea);
+                if (nodo.getProperties().containsKey("origen") && nodo.getProperties().containsKey("destino")) {
+                    transiciones.add((Line) nodo);
                 }
             }
         }
 
-        if (estadoInicial == null) {
-            System.out.println("No hay estado inicial (E1) definido.");
-            return;
-        }
+        if (estInicial == null) return;
 
-        java.util.Set<Group> estadosAlcanzables = new java.util.HashSet<>();
-        java.util.Queue<Group> cola = new java.util.LinkedList<>();
-
-        cola.add(estadoInicial);
-        estadosAlcanzables.add(estadoInicial);
+        Set<Group> alcanzables = new HashSet<>();
+        Queue<Group> cola = new LinkedList<>();
+        cola.add(estInicial);
+        alcanzables.add(estInicial);
 
         while (!cola.isEmpty()) {
-            Group estadoActual = cola.poll();
-
-            for (Line transicion : todasLasTransiciones) {
+            Group actual = cola.poll();
+            for (Line transicion : transiciones) {
                 Group origen = (Group) transicion.getProperties().get("origen");
                 Group destino = (Group) transicion.getProperties().get("destino");
-
-                if (origen.equals(estadoActual) && !estadosAlcanzables.contains(destino)) {
-                    estadosAlcanzables.add(destino);
+                if (origen.equals(actual) && !alcanzables.contains(destino)) {
+                    alcanzables.add(destino);
                     cola.add(destino);
                 }
             }
         }
 
-
-        int inalcanzablesEncontrados = 0;
-        for (Group estado : todosLosEstados) {
-            Circle circuloPrincipal = (Circle) estado.getChildren().get(0);
-
-            if (!estadosAlcanzables.contains(estado)) {
-                circuloPrincipal.setFill(Color.web("#7f8c8d"));
-                circuloPrincipal.setStroke(Color.web("#bdc3c7"));
-                inalcanzablesEncontrados++;
+        for (Group estado : todos) {
+            Circle c = (Circle) estado.getChildren().get(0);
+            if (!alcanzables.contains(estado)) {
+                c.setFill(Color.web("#7f8c8d")); c.setStroke(Color.web("#bdc3c7"));
             } else {
-                circuloPrincipal.setFill(Color.web("#3498db"));
-                circuloPrincipal.setStroke(Color.web("#2980b9"));
+                c.setFill(Color.web("#3498db")); c.setStroke(Color.web("#2980b9"));
             }
         }
-
-        System.out.println("Análisis completado. Se encontraron " + inalcanzablesEncontrados + " estados inalcanzables.");
     }
 
+    @FXML
+    public void exportarProyecto() {
+        Proyecto p = AppSession.getCurrentProyecto();
+        if (p == null) return;
+
+        List<Estado> estados = EstadoDAO.obtenerPorProyecto(p.getId());
+        List<Transicion> transiciones = TransicionDAO.obtenerTransicionesPorProyecto(p.getId());
+        Map<Integer, String> mapaNombres = new HashMap<>();
+        for (Estado e : estados) mapaNombres.put(e.getId(), e.getNombre());
+
+        StringBuilder reporte = new StringBuilder();
+        reporte.append("--- MODELO FORMAL ---\nProyecto: ").append(p.getNombre()).append("\n\nESTADOS:\n");
+        for (Estado e : estados) reporte.append("- ").append(e.getNombre()).append("\n");
+
+        reporte.append("\nTRANSICIONES:\n");
+        for (Transicion t : transiciones) {
+            reporte.append("[ ").append(mapaNombres.getOrDefault(t.getEstadoOrigenId(), "?")).append(" ] --(")
+                    .append(t.getEvento()).append(")--> [ ").append(mapaNombres.getOrDefault(t.getEstadoDestinoId(), "?")).append(" ]\n");
+        }
+
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Exportar a TXT");
+        chooser.setInitialFileName(p.getNombre().replaceAll("\\s+", "_") + ".txt");
+        File archivo = chooser.showSaveDialog(lienzo.getScene().getWindow());
+        if (archivo != null) {
+            try (PrintWriter writer = new PrintWriter(new FileWriter(archivo))) {
+                writer.print(reporte.toString());
+            } catch (IOException ex) {}
+        }
+    }
+
+    @FXML public void limpiarLienzo() { lienzo.getChildren().clear(); idsUsados.clear(); estadoOrigenParaTransicion = null; }
 
     @FXML
-    public void limpiarLienzo() {
-
-        lienzo.getChildren().clear();
-
-
-        idsUsados.clear();
-
-
-        estadoOrigenParaTransicion = null;
+    public void volverAlMenu(ActionEvent event) {
+        try {
+            Parent raiz = new FXMLLoader(getClass().getResource("/fxml/VentanaPrincipal.fxml")).load();
+            Stage escenario = (Stage) ((Node) event.getSource()).getScene().getWindow();
+            escenario.setScene(new Scene(raiz, 800, 600));
+        } catch (IOException e) {}
     }
 
     @FXML
     public void iniciarSimulacion() {
         if (lienzo.getChildren().isEmpty()) return;
-
         for (Node nodo : lienzo.getChildren()) {
             if (nodo instanceof Group) {
-                Group grupo = (Group) nodo;
-                if (grupo.getProperties().get("idEstado") != null && (int) grupo.getProperties().get("idEstado") == 1) {
-                    estadoActualSimulacion = grupo;
-
-                    Circle circulo = (Circle) grupo.getChildren().get(0);
-                    circulo.setFill(Color.web("#2ecc71"));
-                    circulo.setStroke(Color.web("#27ae60"));
-                    bitacoraSimulacion.append("-> Simulación iniciada. Punto de partida: Estado Inicial.\n");
-                    evaluarPropiedadActual();
+                Group g = (Group) nodo;
+                if (g.getProperties().get("idEstado") != null && (int) g.getProperties().get("idEstado") == 1) {
+                    estadoActualSimulacion = g;
+                    Circle c = (Circle) g.getChildren().get(0);
+                    c.setFill(Color.web("#2ecc71")); c.setStroke(Color.web("#27ae60"));
+                    bitacoraSimulacion.append("Simulación iniciada en E1\n");
                     break;
                 }
             }
         }
-        System.out.println("Simulación iniciada en E1.");
     }
 
     @FXML
     public void avanzarSimulacion() {
-        if (estadoActualSimulacion == null) {
-            System.out.println("Primero debes iniciar la simulación.");
-            return;
-        }
-        javafx.scene.control.TextInputDialog dialogo = new javafx.scene.control.TextInputDialog();
-        dialogo.setTitle("Simulador Paso a Paso");
-        dialogo.setHeaderText("Estás en el estado actual.");
-        dialogo.setContentText("Ingresa el evento para avanzar (ej. a, 1, ε):");
-
-        dialogo.showAndWait().ifPresent(eventoIngresado -> {
-            boolean caminoEncontrado = false;
-
+        if (estadoActualSimulacion == null) return;
+        TextInputDialog d = new TextInputDialog(); d.setTitle("Avanzar"); d.setHeaderText("Ingresa el evento:");
+        d.showAndWait().ifPresent(evento -> {
+            boolean encontrado = false;
             for (Node nodo : lienzo.getChildren()) {
-                if (nodo instanceof javafx.scene.control.TextField) {
-                    javafx.scene.control.TextField campo = (javafx.scene.control.TextField) nodo;
+                if (nodo instanceof TextField) {
+                    TextField campo = (TextField) nodo;
                     Group origen = (Group) campo.getProperties().get("origen");
                     Group destino = (Group) campo.getProperties().get("destino");
-
-                    if (origen != null && origen.equals(estadoActualSimulacion) && campo.getText().equals(eventoIngresado)) {
-
-                        Circle circuloViejo = (Circle) estadoActualSimulacion.getChildren().get(0);
-                        circuloViejo.setFill(Color.web("#3498db"));
-                        circuloViejo.setStroke(Color.web("#2980b9"));
-
+                    if (origen != null && origen.equals(estadoActualSimulacion) && campo.getText().equals(evento)) {
+                        ((Circle) estadoActualSimulacion.getChildren().get(0)).setFill(Color.web("#3498db"));
                         estadoActualSimulacion = destino;
-                        Circle circuloNuevo = (Circle) estadoActualSimulacion.getChildren().get(0);
-                        circuloNuevo.setFill(Color.web("#2ecc71"));
-                        circuloNuevo.setStroke(Color.web("#27ae60"));
-
-                        caminoEncontrado = true;
-
-                        Text textoDestino = (Text) destino.getChildren().get(2);
-                        bitacoraSimulacion.append("-> Transición exitosa [").append(eventoIngresado).append("]\n");
-                        bitacoraSimulacion.append("   Llegada al estado: ").append(textoDestino.getText()).append("\n");
-
-                        evaluarPropiedadActual();
+                        ((Circle) estadoActualSimulacion.getChildren().get(0)).setFill(Color.web("#2ecc71"));
+                        bitacoraSimulacion.append("Transición a ").append(((Text) destino.getChildren().get(2)).getText()).append("\n");
+                        encontrado = true;
                         break;
                     }
                 }
             }
-
-            if (!caminoEncontrado) {
-                javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.WARNING);
-                alerta.setHeaderText("Camino no válido");
-                alerta.setContentText("No existe ninguna transición desde este estado usando el evento: '" + eventoIngresado + "'");
-                alerta.show();
-                bitacoraSimulacion.append("-> Intento fallido de transición con evento [").append(eventoIngresado).append("]\n");
+            if (!encontrado) {
+                Alert a = new Alert(Alert.AlertType.WARNING); a.setContentText("Evento no válido"); a.show();
             }
         });
     }
 
-    private void evaluarPropiedadActual() {
-        if (estadoActualSimulacion.getProperties().containsKey("propiedadFormal")) {
-            String regla = (String) estadoActualSimulacion.getProperties().get("propiedadFormal");
-
-            javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-            bitacoraSimulacion.append("   [VERIFICACIÓN] Se evaluó la regla: ").append(regla).append("\n");
-            alerta.setTitle("Verificación Automática");
-            alerta.setHeaderText("¡Estado con Propiedad Formal Detectado!");
-            alerta.setContentText("El sistema debe cumplir la regla: [ " + regla + " ] en este punto.");
-            alerta.show();
+    @FXML
+    private void finalizarSimulacion(ActionEvent event) {
+        Proyecto p = AppSession.getCurrentProyecto();
+        if (p != null) {
+            HistorialSimulacionDAO.insertar(new HistorialSimulacion(p.getId(), bitacoraSimulacion.toString()));
+            bitacoraSimulacion.setLength(0);
         }
     }
 
     @FXML
-    private void finalizarSimulacion(ActionEvent event) {
-        com.proyectomsw.core.Proyecto proyectoEnSesion = com.proyectomsw.core.AppSession.getCurrentProyecto();
+    public void exportarProyectoCompleto() {
+        Proyecto p = AppSession.getCurrentProyecto();
+        if (p == null) return;
 
-        if (proyectoEnSesion == null) {
-            System.err.println("¡ERROR! No hay proyecto guardado en AppSession.");
-            return;
+        List<Estado> estados = EstadoDAO.obtenerPorProyecto(p.getId());
+        List<Transicion> transiciones = TransicionDAO.obtenerTransicionesPorProyecto(p.getId());
+        List<HistorialSimulacion> historial = HistorialSimulacionDAO.obtenerPorProyecto(p.getId());
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("========================================\n");
+        sb.append(" REPORTE COMPLETO: ").append(p.getNombre()).append("\n");
+        sb.append("========================================\n\n");
+
+        sb.append("1. MODELO DEFINIDO:\n");
+        sb.append("--------------------\n");
+        sb.append("ESTADOS:\n");
+        for (Estado e : estados) {
+            sb.append(" - ").append(e.getNombre()).append(" (").append(e.getDescripcion()).append(")");
+            if (e.isEsInicial()) sb.append(" [INICIAL]");
+            sb.append("\n");
         }
 
-        try {
-            String textoHistorial = bitacoraSimulacion.toString();
+        sb.append("\nTRANSICIONES:\n");
+        for (Transicion t : transiciones) {
+            sb.append(" - ID ").append(t.getEstadoOrigenId()).append(" --> ").append(t.getEstadoDestinoId())
+                    .append(" | Evento: ").append(t.getEvento()).append("\n");
+        }
 
-            HistorialSimulacion historial = new HistorialSimulacion(proyectoEnSesion.getId(), textoHistorial);
-
-            boolean guardado = HistorialSimulacionDAO.insertar(historial);
-
-            if (guardado) {
-                System.out.println("Historial guardado exitosamente.");
-                bitacoraSimulacion.setLength(0);
-            } else {
-                System.err.println("Error al guardar en base de datos.");
+        sb.append("\n\n2. HISTORIAL DE SIMULACIONES:\n");
+        sb.append("-----------------------------\n");
+        if (historial.isEmpty()) {
+            sb.append("No hay registros de simulación.\n");
+        } else {
+            int i = 1;
+            for (HistorialSimulacion h : historial) {
+                sb.append("\nSimulación #").append(i++).append(":\n");
+                sb.append(h.getLogJson()).append("\n");
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Guardar Reporte del Proyecto");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Archivo de texto", "*.txt"));
+        File file = fileChooser.showSaveDialog(lienzo.getScene().getWindow());
+
+        if (file != null) {
+            try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+                writer.write(sb.toString());
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Reporte exportado con éxito.");
+                alert.show();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
+
 }

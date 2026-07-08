@@ -5,23 +5,27 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 public class EstadoDAO {
+
 
     public static int insertar(Estado estado) {
         String sql = "INSERT INTO Estado (proyecto_id, nombre, descripcion, es_inicial, propiedades_json) VALUES (?, ?, ?, ?, ?)";
         int idGenerado = -1;
 
         try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             pstmt.setInt(1, estado.getProyectoId());
             pstmt.setString(2, estado.getNombre());
             pstmt.setString(3, estado.getDescripcion());
+
             pstmt.setInt(4, estado.isEsInicial() ? 1 : 0);
-            pstmt.setString(5, estado.getPropiedadesJson());
+
+            pstmt.setString(5, estado.getPropiedadesJson() != null ? estado.getPropiedadesJson() : "{}");
 
             pstmt.executeUpdate();
 
@@ -32,19 +36,21 @@ public class EstadoDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Error al insertar Estado: " + e.getMessage());
+            System.err.println("Error SQL en EstadoDAO.insertar: " + e.getMessage());
         }
+
         return idGenerado;
     }
 
-    public static List<Estado> obtenerEstadosPorProyecto(int proyectoId) {
-        List<Estado> estados = new ArrayList<>();
+    public static List<Estado> obtenerPorProyecto(int idProyecto) {
+        List<Estado> lista = new ArrayList<>();
         String sql = "SELECT * FROM Estado WHERE proyecto_id = ?";
 
         try (Connection conn = ConexionDB.getConexion();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setInt(1, proyectoId);
+            pstmt.setInt(1, idProyecto);
+
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     Estado e = new Estado();
@@ -52,14 +58,33 @@ public class EstadoDAO {
                     e.setProyectoId(rs.getInt("proyecto_id"));
                     e.setNombre(rs.getString("nombre"));
                     e.setDescripcion(rs.getString("descripcion"));
+
                     e.setEsInicial(rs.getInt("es_inicial") == 1);
+
                     e.setPropiedadesJson(rs.getString("propiedades_json"));
-                    estados.add(e);
+
+                    lista.add(e);
                 }
             }
-        } catch (SQLException e) {
-            System.err.println("Error al obtener estados: " + e.getMessage());
+        } catch (SQLException ex) {
+            System.err.println("Error SQL en EstadoDAO.obtenerPorProyecto: " + ex.getMessage());
         }
-        return estados;
+
+        return lista;
+    }
+
+
+    public static boolean eliminar(int idEstado) {
+        String sql = "DELETE FROM Estado WHERE id = ?";
+        try (Connection conn = ConexionDB.getConexion();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, idEstado);
+            return pstmt.executeUpdate() > 0;
+
+        } catch (SQLException e) {
+            System.err.println("Error SQL en EstadoDAO.eliminar: " + e.getMessage());
+            return false;
+        }
     }
 }
