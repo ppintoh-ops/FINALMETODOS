@@ -76,17 +76,16 @@ public class EstadoDAO {
     }
 
 
-    public static boolean eliminar(int idEstado) {
-        String sql = "DELETE FROM Estado WHERE id = ?";
+    public static void eliminar(int idEstado) {
         try (Connection conn = ConexionDB.getConexion();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+             Statement stmt = conn.createStatement()) {
 
-            pstmt.setInt(1, idEstado);
-            return pstmt.executeUpdate() > 0;
+            stmt.execute("DELETE FROM Transicion WHERE estado_origen_id = " + idEstado + " OR estado_destino_id = " + idEstado);
+
+            stmt.execute("DELETE FROM Estado WHERE id = " + idEstado);
 
         } catch (SQLException e) {
-            System.err.println("Error SQL en EstadoDAO.eliminar: " + e.getMessage());
-            return false;
+            e.printStackTrace();
         }
     }
 }

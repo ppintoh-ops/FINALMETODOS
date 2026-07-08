@@ -17,7 +17,7 @@ public class Proyecto {
 
     @Override
     public String toString() {
-        return "ID " + this.id +": " + this.nombre;
+        return "ID: " + this.nombre;
     }
 
 }
