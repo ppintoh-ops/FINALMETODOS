@@ -107,4 +107,41 @@ public class ConexionDB {
             e.printStackTrace();
         }
     }
+
+    public static void inicializarTablas() {
+        String sql = "CREATE TABLE IF NOT EXISTS Proyecto ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + "nombre TEXT, "
+                + "descripcion TEXT, "
+                + "fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP"
+                + "); "
+                + "CREATE TABLE IF NOT EXISTS Estado ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + "proyecto_id INTEGER, "
+                + "nombre TEXT, "
+                + "descripcion TEXT, "
+                + "es_inicial INTEGER, "
+                + "propiedades_json TEXT, "
+                + "FOREIGN KEY(proyecto_id) REFERENCES Proyecto(id)"
+                + "); "
+                + "CREATE TABLE IF NOT EXISTS Transicion ("
+                + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                + "proyecto_id INTEGER, "
+                + "estado_origen_id INTEGER, "
+                + "estado_destino_id INTEGER, "
+                + "evento TEXT, "
+                + "condicion_disparo TEXT, "
+                + "FOREIGN KEY(proyecto_id) REFERENCES Proyecto(id), "
+                + "FOREIGN KEY(estado_origen_id) REFERENCES Estado(id), "
+                + "FOREIGN KEY(estado_destino_id) REFERENCES Estado(id)"
+                + ");";
+
+        try (java.sql.Statement stmt = getConexion().createStatement()) {
+            stmt.execute("PRAGMA foreign_keys = ON;");
+            stmt.executeUpdate(sql);
+            System.out.println("Tablas verificadas y actualizadas correctamente.");
+        } catch (java.sql.SQLException e) {
+            System.err.println("Error al inicializar tablas: " + e.getMessage());
+        }
+    }
 }

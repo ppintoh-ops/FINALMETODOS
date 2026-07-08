@@ -16,6 +16,8 @@ public class EstadoDAO {
         String sql = "INSERT INTO Estado (proyecto_id, nombre, descripcion, es_inicial, propiedades_json) VALUES (?, ?, ?, ?, ?)";
         int idGenerado = -1;
 
+        System.out.println("DEBUG GUARDADO: Guardando estado: " + estado.getNombre() + " | Desc: " + estado.getDescripcion());
+
         try (Connection conn = ConexionDB.getConexion();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 

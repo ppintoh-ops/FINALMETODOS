@@ -8,15 +8,14 @@ public class main {
     public static void main(String[] args) {
         System.out.println("Iniciando FormalModel Sim...");
 
-
         ConexionDB.conectar();
 
+        ConexionDB.inicializarTablas();
 
-        System.out.println(" Abriendo ventana principal...");
+        System.out.println("Abriendo ventana principal...");
         Application.launch(VentanaPrincipal.class, args);
 
-
         ConexionDB.desconectar();
-        System.out.println(" Aplicación cerrada correctamente.");
+        System.out.println("Aplicación cerrada correctamente.");
     }
 }

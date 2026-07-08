@@ -37,6 +37,14 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 
+import javafx.scene.control.Dialog;
+import javafx.scene.layout.GridPane;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
+import javafx.util.Pair;
+import javafx.geometry.Insets;
+
 public class EditorProyectoController {
 
     @FXML private Label tituloProyecto;
@@ -83,19 +91,13 @@ public class EditorProyectoController {
         double startX = 100;
         double startY = 150;
 
+        idsUsados.clear();
+
         for (Estado est : estados) {
             Group nodoVisual = dibujarEstado(est.getNombre(), est.getId(), startX, startY, est.isEsInicial());
             mapaEstadosVisuales.put(est.getId(), nodoVisual);
 
-            int idLogico = 1;
-            try {
-                if (est.getNombre().startsWith("E")) {
-                    idLogico = Integer.parseInt(est.getNombre().substring(1));
-                }
-            } catch (Exception e) {}
-
-            nodoVisual.getProperties().put("idEstado", idLogico);
-            idsUsados.add(idLogico);
+            idsUsados.add(est.getId());
 
             startX += 120;
             if (startX > 700) {
@@ -116,44 +118,77 @@ public class EditorProyectoController {
 
     @FXML
     public void clicEnLienzo(MouseEvent event) {
+
         if (event.isConsumed() || event.getButton() != MouseButton.PRIMARY) return;
 
         double posicionX = event.getX();
         double posicionY = event.getY();
-        double radio = 20.0;
 
-        if (posicionX < radio || posicionX > lienzo.getWidth() - radio ||
-                posicionY < radio || posicionY > lienzo.getHeight() - radio) {
-            return;
-        }
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("Nuevo Estado");
+        dialog.setHeaderText("Configura el nuevo estado");
 
-        Proyecto p = AppSession.getCurrentProyecto();
-        if (p == null) {
-            System.err.println("Error: No hay proyecto activo en sesión.");
-            return;
-        }
+        ButtonType btnCrear = new ButtonType("Crear", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(btnCrear, ButtonType.CANCEL);
 
-        int idActual = obtenerSiguienteIdLogico();
-        idsUsados.add(idActual);
-        boolean esInicial = (idActual == 1);
-        String nombreEstado = "E" + idActual;
+        GridPane grid = new GridPane();
+        grid.setHgap(10); grid.setVgap(10); grid.setPadding(new Insets(20, 150, 10, 10));
 
-        Estado nuevoEstado = new Estado();
-        nuevoEstado.setProyectoId(p.getId());
-        nuevoEstado.setNombre(nombreEstado);
-        nuevoEstado.setDescripcion("Estado autogenerado");
-        nuevoEstado.setEsInicial(esInicial);
-        nuevoEstado.setPropiedadesJson("{}");
+        TextField nombreField = new TextField(); nombreField.setPromptText("Nombre (ej. E1)");
+        TextField descField = new TextField(); descField.setPromptText("Descripción");
 
-        int idGeneradoDb = EstadoDAO.insertar(nuevoEstado);
+        grid.add(new Label("Nombre:"), 0, 0); grid.add(nombreField, 1, 0);
+        grid.add(new Label("Descripción:"), 0, 1); grid.add(descField, 1, 1);
+        dialog.getDialogPane().setContent(grid);
 
-        if (idGeneradoDb > 0) {
-            Group nodoVisual = dibujarEstado(nombreEstado, idGeneradoDb, posicionX, posicionY, esInicial);
-            nodoVisual.getProperties().put("idEstado", idActual);
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == btnCrear) return new Pair<>(nombreField.getText(), descField.getText());
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
+
+        if (result.isPresent()) {
+            String n = result.get().getKey();
+            String d = result.get().getValue();
+
+            System.out.println("DEBUG CAPTURA: El diálogo capturó nombre='" + n + "' y desc='" + d + "'");
+
+            if (n == null || n.trim().isEmpty()) n = "Estado";
+            if (d == null || d.trim().isEmpty()) d = "Sin descripción";
+
+            Proyecto p = AppSession.getCurrentProyecto();
+            if (p == null) {
+                System.err.println("ERROR: No hay proyecto en sesión.");
+                return;
+            }
+
+            List<Estado> estadosExistentes = EstadoDAO.obtenerPorProyecto(p.getId());
+            boolean esInicial = (estadosExistentes == null || estadosExistentes.isEmpty());
+
+            System.out.println("DEBUG: ¿Ya existen estados en BD? " + !esInicial);
+            System.out.println("DEBUG: ¿Será inicial? " + esInicial);
+
+            Estado nuevoEstado = new Estado();
+            nuevoEstado.setProyectoId(p.getId());
+            nuevoEstado.setNombre(n);
+            nuevoEstado.setDescripcion(d);
+            nuevoEstado.setEsInicial(esInicial);
+            nuevoEstado.setPropiedadesJson("{}");
+
+            int idGeneradoDb = EstadoDAO.insertar(nuevoEstado);
+
+            if (idGeneradoDb > 0) {
+                System.out.println("DEBUG: Estado insertado en BD con nombre: " + n);
+                Group nodoVisual = dibujarEstado(n, idGeneradoDb, posicionX, posicionY, nuevoEstado.isEsInicial());
+                nodoVisual.getProperties().put("idEstado", idGeneradoDb);
+            } else {
+                System.err.println("ERROR: La base de datos rechazó la inserción.");
+            }
         } else {
-            System.err.println("Error al insertar el estado en la base de datos.");
-            idsUsados.remove(idActual);
+            System.out.println("DEBUG: El usuario canceló la creación del estado.");
         }
+
     }
 
     private Group dibujarEstado(String nombre, int idDB, double x, double y, boolean esInicial) {
@@ -180,10 +215,11 @@ public class EditorProyectoController {
 
         nodoEstado.getChildren().addAll(circulo, circuloInterno, texto);
 
-        if (esInicial || nombre.equals("E1")) {
+        if (esInicial) {
             Line flechaInicioLinea = new Line(-45, 0, -20, 0);
             flechaInicioLinea.setStroke(Color.web("#2c3e50"));
             flechaInicioLinea.setStrokeWidth(2);
+
             Polygon puntaInicio = new Polygon(-20, 0, -28, 5, -28, -5);
             puntaInicio.setFill(Color.web("#2c3e50"));
             nodoEstado.getChildren().addAll(flechaInicioLinea, puntaInicio);
